@@ -401,7 +401,7 @@ Warnings (reported, not blocking): a task with no tests; a task with more than 1
 }
 ```
 
-Severity: `blocking`, `major`, `minor`. `rule` references a code rubric id from `docs/07-QUALITY-RUBRICS.md` (C1 to C12) or `S<n>` for a slop item from the specialist's list.
+Severity: `blocking`, `major`, `minor`. `rule` references a code rubric id from `docs/07-QUALITY-RUBRICS.md` (C1 to C12), `S<n>` for a slop item from the specialist's list, or `U1` to `U5` for the UI review rules that frontend and 3d code reviewers also check (`library/templates/ui-review-rules.md`).
 
 ### 4.8 Design review (`reviews/<task>.design.json`)
 
@@ -698,7 +698,7 @@ write_to: .tenonry/runs/<runId>/reviews/<taskId>.<kind>.json
 
 `login` is `available` when `preview-credentials` would return `available: true`, otherwise `none`. Credentials never appear in a delegation. The `preview_command`, `preview_url`, and `preview_cwd` lines are for information; the reviewer starts and stops the preview with `preview-start` and `preview-stop`.
 
-Code reviews omit the `design_*`, `preview_*`, and `login` lines.
+Code reviews omit the `preview_*` and `login` lines, and omit the `design_*` lines when the task is not `ui`.
 
 ### 6.11 Status display
 
@@ -827,6 +827,7 @@ Specialist and reviewer variables:
 | `{{slop}}` | catalog slop as a numbered list: `S1. ...`, `S2. ...` |
 | `{{modelFloor}}` | catalog modelFloor |
 | `{{uiRules}}` | for layers `frontend` and `3d`: the UI block in `docs/06` section 5.2; otherwise an empty string |
+| `{{uiReview}}` | code reviewers only. For layers `frontend` and `3d`: the content of `library/templates/ui-review-rules.md` (`docs/06` section 5.4); otherwise an empty string |
 | `{{verify}}` | the task-scoped verification lines described below the table |
 
 For each `config.verify` entry whose `root` is the root of a package where this specialist is active, in config order, `{{verify}}` emits:

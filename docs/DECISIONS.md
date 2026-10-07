@@ -363,3 +363,8 @@ Work order: `docs/FIX-0.2.0.md`. Entries start at D-061.
 - Context: Django, FastAPI, and Flask each own `**/*.py` at a higher priority than the Python specialist, so Python was activated and rendered as two agents (builder and reviewer) that could never receive a task.
 - Decision: In both catalog copies `django`, `fastapi`, and `flask` have `"supersedes": ["python"]`. A plain Python project still activates `python`. The detection test for the `django` fixture, which expected `python` to be active, was updated.
 - Reason: Fewer dead agents in context, and no owner that never owns anything.
+
+### D-072: UI review rules for frontend and 3d code reviewers (F9)
+- Context: The UI rules (tokens only, every state built, accessibility in code) went into frontend builders but not into their code reviewers, so nobody checked them in code.
+- Decision: A new shipped block, `library/templates/ui-review-rules.md` (docs/06 section 5.4), lists rules U1 to U5 and is rendered into code reviewers of `frontend` and `3d` specialists through `{{uiReview}}`; backend and data reviewers get an empty string. Findings may cite `U1` to `U5`. Code review delegations for `ui: true` tasks now carry the `design_direction` and `design_brief` lines (never the `preview_*` or `login` lines), so the reviewer can read what it checks against. The verbatim comparison test covers the new file, and the marker test exempts it like `ui-rules.md`. The review test that asserted no design lines in a UI task's code review was updated.
+- Reason: A rule a builder must follow should be a rule a reviewer checks.

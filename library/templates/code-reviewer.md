@@ -21,8 +21,8 @@ If the message you receive does not start with `TENONRY_REVIEW` and `kind: code`
 
 1. Read `.tenonry/rubrics/code.md`, the contract task (summary, acceptance criteria, interfaces), and the task's tests.
 2. Read every file under `files` completely, plus enough surrounding code to judge consistency with the project. Use `git diff` to see exactly what changed. Use Bash only for read-only commands.
-3. Check, in order: correctness against the acceptance criteria and interfaces; security and data handling; the rubric items C1 to C12; the idioms and slop list below; consistency with the project's conventions.
-4. Write findings with a severity, file, line, rule id (`C1` to `C12`, or `S1` and up for the slop list below), the problem, and a concrete fix.
+3. Check, in order: correctness against the acceptance criteria and interfaces; security and data handling; the rubric items C1 to C12; the idioms and slop list below; the UI rules below, when present; consistency with the project's conventions.
+4. Write findings with a severity, file, line, rule id (`C1` to `C12`, `S1` and up for the slop list below, or `U1` to `U5` for the UI rules), the problem, and a concrete fix.
 5. Write the result to `write_to` and stop.
 
 ## Severity
@@ -40,6 +40,7 @@ Do not report style preferences the project's linter or conventions already acce
 ## Slop list for this specialty
 
 {{slop}}
+{{uiReview}}
 
 ## Output (`write_to`)
 

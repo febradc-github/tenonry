@@ -139,3 +139,32 @@ test("F6: the design reviewer manages the preview through Tenonry and can sign i
   assert.equal(process_.split("\n").filter((line) => /^\d+\. /.test(line)).length, 7);
   assert.ok(text.includes('  "profile": "showcase | product",\n  "rendered": true,\n  "unrenderedReason": null,\n'));
 });
+
+test("F9: frontend and 3d code reviewers get the UI review rules; backend and data reviewers do not", () => {
+  const agents = render([{ root: ".", specialists: ["vue", "3d", "laravel", "eloquent"] }]);
+  const rules = fs.readFileSync(path.join(libraryDir, "templates", "ui-review-rules.md"), "utf8");
+  assert.ok(rules.startsWith("\n## UI rules to check\n"), "the block starts with a blank line, like ui-rules.md");
+  for (const name of ["tenonry-review-vue", "tenonry-review-3d"]) {
+    const text = agents.get(name);
+    assert.ok(text.includes("## UI rules to check"), name);
+    for (const id of ["U1.", "U2.", "U3.", "U4.", "U5."]) assert.ok(text.includes(`- ${id} `), `${name} ${id}`);
+    assert.ok(text.includes(`${rules.trimEnd()}\n\n## Output (\`write_to\`)`), `${name}: the block sits between the slop list and the output`);
+    assert.doesNotMatch(text, /\n\n\n/);
+    assert.ok(!text.includes("{{"));
+  }
+  for (const name of ["tenonry-review-laravel", "tenonry-review-eloquent"]) {
+    const text = agents.get(name);
+    assert.ok(!text.includes("## UI rules to check"), name);
+    assert.ok(!text.includes("U1."), name);
+    assert.doesNotMatch(text, /\n\n\n/);
+    assert.ok(text.includes("the UI rules below, when present"), `${name} keeps the shared wording`);
+  }
+  assert.ok(!agents.get("tenonry-vue").includes("## UI rules to check"), "builders keep their own UI rules block only");
+  assert.ok(agents.get("tenonry-vue").includes("## UI rules\n"));
+});
+
+test("F9: every code reviewer may cite U1 to U5", () => {
+  const text = fs.readFileSync(path.join(libraryDir, "templates", "code-reviewer.md"), "utf8");
+  assert.ok(text.includes("rule id (`C1` to `C12`, `S1` and up for the slop list below, or `U1` to `U5` for the UI rules)"));
+  assert.ok(text.includes("## Slop list for this specialty\n\n{{slop}}\n{{uiReview}}\n"));
+});

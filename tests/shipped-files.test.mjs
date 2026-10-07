@@ -35,7 +35,7 @@ test("shipped text files use LF line endings", () => {
 test("every core and template file ends with the generated marker, except ui-rules", () => {
   for (const dir of ["library/core", "library/templates"]) {
     for (const name of fs.readdirSync(path.join(repoRoot, dir))) {
-      if (name === "ui-rules.md") continue;
+      if (name === "ui-rules.md" || name === "ui-review-rules.md") continue;
       const lines = fs.readFileSync(path.join(repoRoot, dir, name), "utf8").trimEnd().split("\n");
       assert.equal(lines.at(-1), MARKER, `${dir}/${name}`);
     }
@@ -51,7 +51,7 @@ test("shipped texts match docs/06 and docs/07 verbatim", () => {
 });
 
 test("agent and skill descriptions stay under 30 words", () => {
-  const files = TEXT_SOURCES.map((s) => s.target).filter((t) => t.endsWith(".md") && !t.includes("rubrics") && !t.includes("ui-rules"));
+  const files = TEXT_SOURCES.map((s) => s.target).filter((t) => t.endsWith(".md") && !t.includes("rubrics") && !t.includes("ui-rules") && !t.includes("ui-review-rules"));
   for (const target of files) {
     const text = fs.readFileSync(path.join(repoRoot, target), "utf8");
     const description = /^description: (.*)$/m.exec(text)?.[1] ?? "";

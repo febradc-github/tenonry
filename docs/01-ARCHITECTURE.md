@@ -46,7 +46,7 @@ Design goals, in priority order:
 70 builder specialists across four layers, defined in `docs/05-SPECIALIST-CATALOG.json`: frontend (24), 3d (1), backend (23), data (22). Init activates only those whose detection signals match the project. Each active specialist `X` produces two agents:
 
 - `tenonry-X`: the builder. Owns the files matched by its catalog globs.
-- `tenonry-review-X`: its code reviewer. Same idioms and slop list, read-only except for its review file.
+- `tenonry-review-X`: its code reviewer. Same idioms and slop list, read-only except for its review file. Reviewers of frontend and 3d specialists also check the UI rules (tokens only, every state built, accessibility in code) against the design direction and brief.
 
 ### 2.4 Hooks
 
@@ -92,7 +92,7 @@ tenonry/
     core/
       planner.md  art-director.md  test-author.md  design-reviewer.md
     templates/
-      specialist.md  code-reviewer.md  ui-rules.md
+      specialist.md  code-reviewer.md  ui-rules.md  ui-review-rules.md
     rubrics/
       design.md  code.md
   tests/

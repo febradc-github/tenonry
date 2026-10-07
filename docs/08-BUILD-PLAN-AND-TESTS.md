@@ -16,7 +16,7 @@ Tests:
 - `renderTemplate` throws on a missing variable; renders lists correctly.
 - `catalog-check` passes on the shipped catalog and fails on a copy with a duplicate id, a bad layer count, an invalid glob, and an unknown `supersedes` id.
 - No shipped file under `library/`, `skills/`, `scripts/`, `hooks/`, or `.claude-plugin/` contains U+2014.
-- Every file in `library/core/` and `library/templates/` (except `ui-rules.md`) ends with the generated marker line.
+- Every file in `library/core/` and `library/templates/` (except `ui-rules.md` and `ui-review-rules.md`) ends with the generated marker line.
 
 ## Slice 2: deterministic hooks
 

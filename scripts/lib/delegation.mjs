@@ -29,10 +29,12 @@ export function fixMessage(runId, task, feedback) {
 export function reviewMessage({ runId, task, kind, round, files, preview, login = false }) {
   const lines = ["TENONRY_REVIEW", `run: ${runId}`, `task: ${task.id}`, `kind: ${kind}`, `round: ${round}`, `contract: ${relRunPath(runId, "contract.json")}`];
   lines.push("files:", ...files.map((file) => `  - ${file}`));
+  // Code reviewers of UI work check the UI rules, so they need the direction and the brief too.
+  if (kind === "design" || task.ui) {
+    lines.push("design_direction: .tenonry/design-direction.md", `design_brief: ${relRunPath(runId, "design-brief.md")}`);
+  }
   if (kind === "design") {
     lines.push(
-      "design_direction: .tenonry/design-direction.md",
-      `design_brief: ${relRunPath(runId, "design-brief.md")}`,
       `preview_command: ${preview?.command ?? "none"}`,
       `preview_url: ${preview?.url ?? "none"}`,
       `preview_cwd: ${preview?.cwd ?? "none"}`,

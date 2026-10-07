@@ -73,7 +73,15 @@ test("review-plan: ui tasks also get an opus design reviewer with preview detail
       "preview_cwd: .", "login: none", `write_to: .tenonry/runs/${s.runId}/reviews/T3.design.json`,
     ].join("\n"),
   );
-  assert.ok(!plan.reviewers[0].delegation.includes("design_direction"));
+  assert.equal(
+    plan.reviewers[0].delegation,
+    [
+      "TENONRY_REVIEW", `run: ${s.runId}`, "task: T3", "kind: code", "round: 1", `contract: .tenonry/runs/${s.runId}/contract.json`,
+      "files:", "  - resources/js/Pages/Loyalty.vue", "design_direction: .tenonry/design-direction.md",
+      `design_brief: .tenonry/runs/${s.runId}/design-brief.md`, `write_to: .tenonry/runs/${s.runId}/reviews/T3.code.json`,
+    ].join("\n"),
+    "F9: a code review of a ui task carries the design lines but no preview or login lines",
+  );
   assert.deepEqual(s.run().tasks.T3.reviewRounds, { design: 1, code: 1 });
 });
 
@@ -325,4 +333,15 @@ test("F6: design delegations say login: none with only one credential value", ()
   const { s, task } = reviewing({ ui: true });
   fs.writeFileSync(`${s.root}/.env`, "TENONRY_PREVIEW_USER=someone\n");
   assert.match(s.cli("review-plan", s.runId, task).reviewers[1].delegation, /\nlogin: none\n/);
+});
+
+test("F9: code review delegations carry design lines only for ui tasks", () => {
+  const ui = reviewing({ ui: true });
+  const uiCode = ui.s.cli("review-plan", ui.s.runId, ui.task).reviewers.find((r) => r.kind === "code").delegation;
+  assert.match(uiCode, /\ndesign_direction: \.tenonry\/design-direction\.md\ndesign_brief: \.tenonry\/runs\/r-[^/]+\/design-brief\.md\nwrite_to: /);
+  assert.ok(!/preview_|login:/.test(uiCode));
+
+  const backend = reviewing();
+  const backendCode = backend.s.cli("review-plan", backend.s.runId, backend.task).reviewers[0].delegation;
+  assert.ok(!/design_|preview_|login:/.test(backendCode));
 });

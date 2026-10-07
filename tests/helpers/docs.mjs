@@ -27,6 +27,7 @@ export const TEXT_SOURCES = [
   { target: "library/templates/specialist.md", doc: "06-AGENT-AND-SKILL-TEXTS.md", heading: "`library/templates/specialist.md`" },
   { target: "library/templates/ui-rules.md", doc: "06-AGENT-AND-SKILL-TEXTS.md", heading: "UI rules block" },
   { target: "library/templates/code-reviewer.md", doc: "06-AGENT-AND-SKILL-TEXTS.md", heading: "`library/templates/code-reviewer.md`" },
+  { target: "library/templates/ui-review-rules.md", doc: "06-AGENT-AND-SKILL-TEXTS.md", heading: "UI review rules block" },
   { target: "library/rubrics/design.md", doc: "07-QUALITY-RUBRICS.md", heading: "`library/rubrics/design.md`" },
   { target: "library/rubrics/code.md", doc: "07-QUALITY-RUBRICS.md", heading: "`library/rubrics/code.md`" },
 ];

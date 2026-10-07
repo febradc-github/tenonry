@@ -48,6 +48,7 @@ export function renderAgents({ libraryDir, catalog, packages, verify }) {
   const activeIds = [...new Set(packages.flatMap((pkg) => pkg.specialists))].sort();
   const bySpec = new Map(catalog.map((spec) => [spec.id, spec]));
   const uiRulesText = readLibrary(libraryDir, "templates", "ui-rules.md").trimEnd();
+  const uiReviewText = readLibrary(libraryDir, "templates", "ui-review-rules.md").trimEnd();
   const specialistTemplate = readLibrary(libraryDir, "templates", "specialist.md");
   const reviewerTemplate = readLibrary(libraryDir, "templates", "code-reviewer.md");
   const out = new Map();
@@ -69,18 +70,19 @@ export function renderAgents({ libraryDir, catalog, packages, verify }) {
       idioms: bullets(spec.idioms),
       slop: numbered(spec.slop, "S"),
     };
+    const isUi = ["frontend", "3d"].includes(spec.layer);
     const builderName = `tenonry-${id}`;
     const builder = renderTemplate(specialistTemplate, {
       ...common,
       guard: guardCommand(builderName),
       owns: bullets(renderedGlobs(spec, packages)),
       verify: verifyLines(spec, packages, verify),
-      uiRules: ["frontend", "3d"].includes(spec.layer) ? `\n${uiRulesText}` : "",
+      uiRules: isUi ? `\n${uiRulesText}` : "",
     });
     out.set(builderName, assertMarker(collapseBlankLines(builder), builderName));
 
     const reviewerName = `tenonry-review-${id}`;
-    const reviewer = renderTemplate(reviewerTemplate, { ...common, guard: guardCommand(reviewerName) });
+    const reviewer = renderTemplate(reviewerTemplate, { ...common, guard: guardCommand(reviewerName), uiReview: isUi ? `\n${uiReviewText}` : "" });
     out.set(reviewerName, assertMarker(collapseBlankLines(reviewer), reviewerName));
   }
   return out;
