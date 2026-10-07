@@ -34,3 +34,71 @@ test("F1: the test author is told how to list generator-named files", () => {
     ),
   );
 });
+
+const LARAVEL_VERIFY = [{ root: ".", ecosystem: "php", test: "php artisan test", testFiles: "php artisan test {files}", typecheck: null, lint: "./vendor/bin/pint --test" }];
+const verifyBlock = (text) => {
+  const lines = text.split("\n");
+  const start = lines.findIndex((line) => line.startsWith("5. Check your work with your task's tests only."));
+  const end = lines.findIndex((line) => line.startsWith("6. If you need a change in a file you do not own"));
+  return lines.slice(start + 1, end);
+};
+
+test("F2: laravel specialists get the task test command and lint, never the project-wide test command", () => {
+  const agents = render([{ root: ".", specialists: ["laravel", "eloquent", "vue"] }], LARAVEL_VERIFY);
+  for (const name of ["tenonry-laravel", "tenonry-eloquent", "tenonry-vue"]) {
+    const text = agents.get(name);
+    assert.deepEqual(verifyBlock(text), ["- task tests: php artisan test {files}", "- lint: ./vendor/bin/pint --test"], name);
+    assert.ok(!text.split("\n").some((line) => line === "- test: php artisan test" || line === "php artisan test" || line === "- php artisan test"), name);
+    assert.ok(text.includes("never run the whole test suite, and never try to fix another task's failures"), name);
+    assert.ok(!text.includes("{{"), name);
+  }
+});
+
+test("F2: the rendering from a real init of laravel-vue matches", async () => {
+  const { fixtureCopy, runInit } = await import("./helpers/project.mjs");
+  const root = fixtureCopy("laravel-vue");
+  runInit(root);
+  const text = fs.readFileSync(path.join(root, ".claude", "agents", "tenonry-laravel.md"), "utf8");
+  assert.deepEqual(verifyBlock(text), ["- task tests: php artisan test {files}", "- lint: ./vendor/bin/pint --test"]);
+});
+
+test("F2: a package below the root gets the run-from suffix", async () => {
+  const { fixtureCopy, runInit } = await import("./helpers/project.mjs");
+  const root = fixtureCopy("monorepo");
+  runInit(root);
+  const nest = fs.readFileSync(path.join(root, ".claude", "agents", "tenonry-nestjs.md"), "utf8");
+  assert.deepEqual(verifyBlock(nest), ["- task tests: npx vitest run {files} (run from apps/api; test paths relative to apps/api)"]);
+  const next = fs.readFileSync(path.join(root, ".claude", "agents", "tenonry-nextjs.md"), "utf8");
+  assert.deepEqual(verifyBlock(next), ["- No verification commands are configured for your files."]);
+});
+
+test("F2: a null testFiles renders the no-command line, then typecheck and lint", () => {
+  const verify = [{ root: ".", ecosystem: "rust", test: "cargo test", testFiles: null, typecheck: "cargo check", lint: null }];
+  const text = render([{ root: ".", specialists: ["rust-axum"] }], verify).get("tenonry-rust-axum");
+  assert.deepEqual(verifyBlock(text), [
+    "- task tests: no task-scoped test command is configured; do not run tests, Tenonry runs them after you finish.",
+    "- typecheck: cargo check",
+  ]);
+  assert.ok(!text.includes("cargo test"));
+});
+
+test("F2: one block per verify entry of the specialist's packages, in config order", () => {
+  const verify = [
+    { root: ".", ecosystem: "js", test: "npm test", testFiles: "npx vitest run {files}", typecheck: "npx tsc --noEmit", lint: "npm run lint" },
+    { root: ".", ecosystem: "php", test: "php artisan test", testFiles: "php artisan test {files}", typecheck: null, lint: null },
+    { root: "apps/other", ecosystem: "go", test: "go test ./...", testFiles: "go test {packages}", typecheck: "go vet ./...", lint: null },
+  ];
+  const text = render([{ root: ".", specialists: ["vue"] }, { root: "apps/other", specialists: ["go"] }], verify).get("tenonry-vue");
+  assert.deepEqual(verifyBlock(text), [
+    "- task tests: npx vitest run {files}",
+    "- typecheck: npx tsc --noEmit",
+    "- lint: npm run lint",
+    "- task tests: php artisan test {files}",
+  ]);
+});
+
+test("F2: no rendered agent keeps an unrendered placeholder", () => {
+  const agents = render([{ root: ".", specialists: catalog.map((spec) => spec.id) }], LARAVEL_VERIFY);
+  assert.equal(agents.size, 4 + 2 * catalog.length);
+  for (const [name, text] of agents) assert.ok(!text.includes("{{"), name);
+});

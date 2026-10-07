@@ -788,4 +788,13 @@ Specialist and reviewer variables:
 | `{{slop}}` | catalog slop as a numbered list: `S1. ...`, `S2. ...` |
 | `{{modelFloor}}` | catalog modelFloor |
 | `{{uiRules}}` | for layers `frontend` and `3d`: the UI block in `docs/06` section 5.2; otherwise an empty string |
-| `{{verify}}` | `bullets` of the non-null verify commands for the specialist's packages, as `name: command` |
+| `{{verify}}` | the task-scoped verification lines described below the table |
+
+For each `config.verify` entry whose `root` is the root of a package where this specialist is active, in config order, `{{verify}}` emits:
+
+- `- task tests: <testFiles>` when `testFiles` is not null. When the entry's `root` is not `.`, append ` (run from <root>; test paths relative to <root>)`.
+- `- task tests: no task-scoped test command is configured; do not run tests, Tenonry runs them after you finish.` when `testFiles` is null.
+- `- typecheck: <typecheck>` when not null.
+- `- lint: <lint>` when not null.
+
+The project-wide `test` command is never rendered for specialists. When the specialist has no matching verify entry, `{{verify}}` renders `- No verification commands are configured for your files.` The literal `{files}` stays in the rendered text.

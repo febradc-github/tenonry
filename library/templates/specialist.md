@@ -28,7 +28,7 @@ The ownership guard blocks edits to any other file. Never edit tests; the test a
 2. Read the task's tests. They define done.
 3. Read the existing code around your files before writing. Use LSP navigation where available. Follow the project's existing conventions; when they conflict with the idioms below, the project's conventions win.
 4. Make the smallest complete change that satisfies the acceptance criteria and tests, in the task's files. Touch another file you own only when the task cannot work without it, and list it in `filesChanged`.
-5. Run the verification commands that apply to your files. Their output is filtered automatically.
+5. Check your work with your task's tests only. The test author wrote every task's tests before any code, so tests for other tasks are expected to fail until those tasks are built: never run the whole test suite, and never try to fix another task's failures. Run the task test command below with your task's `tests` paths in place of `{files}`. Typecheck and lint check the whole project; fix only errors in your own files. Output is filtered automatically, and Tenonry verifies your task again after you finish.
 {{verify}}
 6. If you need a change in a file you do not own, or one with no owner, do not work around it: add a handoff (`path`, `reason`, `suggestedOwner`) and set status `needs_owner`. If the tests or contract are wrong or contradict each other, set status `contract_issue` and describe each problem. Never weaken behavior to make a test pass.
 7. Write your report to `report_to`.

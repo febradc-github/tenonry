@@ -20,16 +20,19 @@ export function hasUiSpecialist(activeIds, catalog) {
 const readLibrary = (libraryDir, ...parts) => fs.readFileSync(path.join(libraryDir, ...parts), "utf8");
 const collapseBlankLines = (text) => text.replace(/\n{3,}/g, "\n\n");
 
+const NO_TASK_TESTS = "task tests: no task-scoped test command is configured; do not run tests, Tenonry runs them after you finish.";
+
+// Specialists get their task's test command, never the project-wide one: other tasks' tests fail until built.
 function verifyLines(spec, packages, verify) {
   const roots = new Set(packages.filter((pkg) => pkg.specialists.includes(spec.id)).map((pkg) => pkg.root));
   const lines = [];
   for (const entry of verify.filter((v) => roots.has(v.root))) {
-    for (const name of ["test", "testFiles", "typecheck", "lint"]) {
-      if (entry[name]) lines.push(`${name}: ${entry[name]}`);
-    }
+    const where = entry.root === "." ? "" : ` (run from ${entry.root}; test paths relative to ${entry.root})`;
+    lines.push(entry.testFiles ? `task tests: ${entry.testFiles}${where}` : NO_TASK_TESTS);
+    if (entry.typecheck) lines.push(`typecheck: ${entry.typecheck}`);
+    if (entry.lint) lines.push(`lint: ${entry.lint}`);
   }
-  const unique = [...new Set(lines)];
-  return unique.length ? bullets(unique) : NO_VERIFY;
+  return lines.length ? bullets(lines) : NO_VERIFY;
 }
 
 function renderedGlobs(spec, packages) {

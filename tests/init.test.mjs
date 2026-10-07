@@ -80,7 +80,8 @@ test("rendered agents are well formed", () => {
   const eloquent = fs.readFileSync(agentFile(root, "tenonry-eloquent"), "utf8");
   assert.doesNotMatch(eloquent, /## UI rules/);
   assert.doesNotMatch(eloquent, /\n\n\n/);
-  assert.match(eloquent, /- test: php artisan test/);
+  assert.match(eloquent, /^- task tests: php artisan test \{files\}$/m);
+  assert.doesNotMatch(eloquent, /^- test: /m);
   assert.match(fs.readFileSync(agentFile(root, "tenonry-review-vue"), "utf8"), /^model: sonnet$/m);
 });
 
