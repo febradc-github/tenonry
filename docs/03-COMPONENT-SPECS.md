@@ -444,9 +444,10 @@ CLI: `node init.mjs [--project <dir>] [--dry-run] [--if-changed]`. Default proje
 8. Copy `scripts/tenonry.mjs`, `scripts/exec-filter.mjs`, `scripts/hook-ownership-guard.mjs`, and `scripts/lib/` into `.tenonry/bin/` (same relative layout, so imports keep working). Write `.tenonry/bin/VERSION` with the plugin version.
 9. Copy `library/rubrics/design.md` and `code.md` to `.tenonry/rubrics/`.
 10. Render agents (section 9) into `.claude/agents/`. Delete stale `tenonry-*.md` files in `.claude/agents/` that contain the generated marker line and are not in the new set. Never touch files without the marker.
-11. Ensure `.gitignore` contains each of: `.env`, `.tenonry/bin/`, `.tenonry/state.json`, `.tenonry/logs/`, `.tenonry/runs/`. Append missing lines under a `# tenonry` header. Create `.gitignore` if absent.
-12. Report whether `.env` contains a non-empty `OPENROUTER_API_KEY` as a boolean only.
-13. Print `{"ok": true, "gitRepo", "packages", "active", "agentsWritten", "agentsRemoved", "agentsDirCreated", "verify", "preview", "jevKey", "warnings", "skipped": false, "manifestHash"}`. `agentsDirCreated` is true when `.claude/agents/` did not exist before this run (Claude Code needs a restart to watch a new agents directory).
+11. Ensure `.gitignore` contains each of: `.env`, `.tenonry/bin/`, `.tenonry/state.json`, `.tenonry/logs/`, `.tenonry/runs/`, `.claude/settings.local.json`. Append missing lines under a `# tenonry` header. Create `.gitignore` if absent.
+12. Ensure `.claude/settings.local.json` contains, in its `permissions.allow` array, each of `Bash(node .tenonry/bin/tenonry.mjs *)` (Tenonry's own bookkeeping script, which the orchestrator and the agents call many times per run) and `mcp__playwright` (the design reviewer's browser). Create the file and the keys if missing. Never remove, reorder, or rewrite other entries or keys; write with 2-space indentation and a trailing newline. If the file exists but is not valid JSON, or `permissions` or `permissions.allow` has the wrong type, leave it untouched and add the warning `settings.local.json is not valid JSON; add the Tenonry permission rules by hand`. The file is gitignored (step 11) because Claude Code applies an untracked local settings file without the workspace trust step.
+13. Report whether `.env` contains a non-empty `OPENROUTER_API_KEY` as a boolean only.
+14. Print `{"ok": true, "gitRepo", "packages", "active", "agentsWritten", "agentsRemoved", "agentsDirCreated", "verify", "preview", "jevKey", "warnings", "skipped": false, "manifestHash", "permissionsAdded"}`. `agentsDirCreated` is true when `.claude/agents/` did not exist before this run (Claude Code needs a restart to watch a new agents directory). `permissionsAdded` is true when this run added at least one permission rule (with `--dry-run`: when it would).
 
 ### 5.2 Detection
 
@@ -514,7 +515,7 @@ If the dev script text contains `--port <n>` or `-p <n>`, use that port. `cwd` i
 
 `manifestHash` = sha256 over: the plugin version, then for each file below that exists (sorted by path), its relative path and contents: every `package.json`, `composer.json`, `pyproject.toml`, `requirements*.txt`, `Pipfile`, `go.mod`, `Cargo.toml`, `Gemfile`, `mix.exs`, `pom.xml`, `build.gradle`, `build.gradle.kts`, `*.csproj`, `pubspec.yaml`, `deno.json`, `deno.jsonc`, `dbt_project.yml`, `pnpm-workspace.yaml`, `artisan`, and `manage.py` at depth 2 or less, skipping the directories excluded by the file scan. Store it in `config.json`.
 
-With `--if-changed`: when `config.json` exists, its `manifestHash` equals the freshly computed hash, and `.tenonry/bin/VERSION` equals the plugin version, print `{"ok": true, "skipped": true, "agentsDirCreated": false, "jevKey": <bool>}` and change nothing else. Otherwise run the full init.
+With `--if-changed`: when `config.json` exists, its `manifestHash` equals the freshly computed hash, `.tenonry/bin/VERSION` equals the plugin version, every agent in `config.agents` exists as a file, and both permission rules of step 12 are present in `.claude/settings.local.json` (a file that cannot be merged into does not count as missing rules, so it does not force a full init on every run), print `{"ok": true, "skipped": true, "agentsDirCreated": false, "jevKey": <bool>}` and change nothing else. Otherwise run the full init.
 
 ## 6. `scripts/tenonry.mjs`
 
@@ -522,7 +523,9 @@ Single CLI used by the `run` skill. Run from the project as `node .tenonry/bin/t
 
 | Command | Behavior |
 |---|---|
-| `new-run --prompt <text>` or `new-run --prompt-file <path>` | `state.newRun`. Returns `{ runId, runDir }`. Writes `route.json` with `jev: "fallback"`, `fallbackReason: "no_hook"`, `clarify: "auto"`, and `mainModel: { current: "unknown", notice: false }` |
+| `new-run --prompt <text>`, `new-run --prompt-stdin`, or `new-run --prompt-file <path>` | `state.newRun`. Returns `{ runId, runDir }`. Writes `route.json` with `jev: "fallback"`, `fallbackReason: "no_hook"`, `clarify: "auto"`, and `mainModel: { current: "unknown", notice: false }`. `--prompt-stdin` reads the request from standard input and strips one trailing newline; empty input prints `{ ok: false, error: "empty_prompt" }` and exits 1. The `run` skill passes the request through a quoted heredoc, so no temporary file and no shell quoting is needed |
+| `write-brief <run>` | Writes `.tenonry/runs/<run>/brief.md` as `# Request`, a blank line, the run's prompt verbatim (from `route.json` `prompt`, else `run.json` `prompt`), and a trailing newline. Returns `{ path }` |
+| `write-brief <run> --stdin` | Writes standard input to `brief.md` as given, ensuring one trailing newline. Empty input prints `{ ok: false, error: "empty_brief" }` and exits 1. Returns `{ path }`. Used by the clarify-intake skill |
 | `intake <run>` | Runs `runIntake` for the run's prompt (same Jev questions and mapping as the hook) and rewrites `route.json`. Used when the hook did not route the prompt (first run before setup, or hook failure) |
 | `status [<run>]` | Returns the run (default: active run) with task statuses, plus `display`: a ready-to-print plain-text summary (section 6.11) |
 | `undo [<run>]` | Section 6.12 |

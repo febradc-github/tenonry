@@ -13,6 +13,7 @@ import { ownerCommand, handoff } from "./owner.mjs";
 import { report, status, calibrate } from "./report.mjs";
 import { undo } from "./undo.mjs";
 import { loadRun } from "./state.mjs";
+import { runDir } from "./paths.mjs";
 
 function need(value, name) {
   if (value === undefined || value === "") throw new CliError(`missing_argument: ${name}`);
@@ -25,9 +26,22 @@ function catalogCheck({ flags }) {
   return { ...checkCatalog(readJson(file)), file };
 }
 
+function readStdin() {
+  try {
+    return fs.readFileSync(0, "utf8");
+  } catch {
+    return "";
+  }
+}
+
 function promptFrom(flags) {
+  if (flags["prompt-stdin"]) {
+    const prompt = readStdin().replace(/\r?\n$/, "");
+    if (prompt.trim() === "") throw new CliError("empty_prompt");
+    return prompt;
+  }
   if (flags["prompt-file"]) return fs.readFileSync(flags["prompt-file"], "utf8").replace(/\s+$/, "");
-  return need(flags.prompt, "--prompt or --prompt-file");
+  return need(flags.prompt, "--prompt, --prompt-stdin, or --prompt-file");
 }
 
 function newRunCommand({ root, flags }) {
@@ -50,6 +64,24 @@ function newRunCommand({ root, flags }) {
   return { runId, runDir: path.relative(root, dir).split(path.sep).join("/") };
 }
 
+// The run's request as brief.md, or the clarified brief from standard input (docs/03 section 6).
+function writeBrief({ root, args, flags }) {
+  const runId = need(args[0], "run");
+  const run = loadRun(root, runId);
+  if (!run) throw new CliError(`run_not_found: ${runId}`);
+  let content;
+  if (flags.stdin) {
+    const text = readStdin();
+    if (text.trim() === "") throw new CliError("empty_brief");
+    content = text.replace(/(\r?\n)+$/, "") + "\n";
+  } else {
+    content = `# Request\n\n${readRoute(root, runId)?.prompt ?? run.prompt}\n`;
+  }
+  const file = path.join(runDir(root, runId), "brief.md");
+  fs.writeFileSync(file, content);
+  return { path: path.relative(root, file).split(path.sep).join("/") };
+}
+
 async function intakeCommand({ root, args }) {
   const runId = need(args[0], "run");
   const run = loadRun(root, runId);
@@ -64,6 +96,7 @@ const ownerPath = ({ args, flags, root }) => ownerCommand(root, need(flags.run, 
 export const COMMANDS = {
   "catalog-check": { run: catalogCheck, needsProject: false },
   "new-run": { run: newRunCommand },
+  "write-brief": { run: writeBrief },
   intake: { run: intakeCommand },
   status: { run: ({ root, args }) => status(root, args[0]) },
   undo: { run: ({ root, args }) => undo(root, args[0]) },

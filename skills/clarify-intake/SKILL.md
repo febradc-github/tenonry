@@ -1,6 +1,7 @@
 ---
 name: clarify-intake
 description: Tenonry intake. Asks the user targeted questions until a Tenonry request is buildable, then writes the run brief.
+allowed-tools: Bash(node *)
 ---
 
 TENONRY_CLARIFY_SKILL
@@ -11,7 +12,7 @@ You were invoked by the Tenonry orchestrator with a run id and a mode (`yes` or 
 2. List the gaps that would change what gets built and cannot be inferred from the request or the repository: scope boundaries, users and roles, behavior and edge cases, data involved, the look and feel or references for any UI, and how success will be judged. Ignore gaps with an obvious sensible default.
 3. Mode `auto` with no material gaps: go to step 5.
 4. Ask with AskUserQuestion: at most 4 questions per round, each with 2 to 4 concrete options and the recommended option first, labeled "(recommended)". Ask only what matters most; skip anything with a sensible default. At most 2 rounds. After the last round, use the recommended option for any gap still open.
-5. Write `.tenonry/runs/<id>/brief.md`:
+5. Save the brief by running `node .tenonry/bin/tenonry.mjs write-brief <id> --stdin` and passing this content through a quoted heredoc (`<<'TENONRY_BRIEF'`, the content, then a line containing only `TENONRY_BRIEF`):
 
 ```
 # Request

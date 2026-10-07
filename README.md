@@ -52,7 +52,14 @@ Commit these:
 - `.tenonry/config.json`, `.tenonry/ownership.json`, `.tenonry/rubrics/`
 - `.tenonry/design-direction.md`: the visual direction, created on the first UI run
 
-Tenonry adds these to `.gitignore` for you: `.env`, `.tenonry/bin/`, `.tenonry/state.json`, `.tenonry/logs/`, `.tenonry/runs/`.
+Tenonry adds these to `.gitignore` for you: `.env`, `.tenonry/bin/`, `.tenonry/state.json`, `.tenonry/logs/`, `.tenonry/runs/`, `.claude/settings.local.json`.
+
+To keep approval prompts rare, setup also adds two allow rules to your local Claude Code settings, `.claude/settings.local.json`, and leaves everything else in that file as it is:
+
+- `Bash(node .tenonry/bin/tenonry.mjs *)`: lets Tenonry run its own bookkeeping script (task state, checks, commits) without asking each time
+- `mcp__playwright`: lets the design reviewer use its browser to look at your pages
+
+Remove either rule if you would rather approve those actions yourself.
 
 Each finished task becomes one local commit named `tenonry(<task>): <title>`. Tenonry never pushes, and it never bypasses your git hooks.
 

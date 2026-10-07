@@ -5,6 +5,9 @@ import { findProjectRoot } from "./lib/paths.mjs";
 import { COMMANDS } from "./lib/commands.mjs";
 import { CliError } from "./lib/ctx.mjs";
 
+// Flags that take no value: the content arrives on standard input.
+const STDIN_FLAGS = ["prompt-stdin", "stdin"];
+
 async function main() {
   const [name, ...rest] = process.argv.slice(2);
   const command = COMMANDS[name];
@@ -12,7 +15,7 @@ async function main() {
     printResult({ ok: false, error: `unknown_command: ${name ?? ""}` });
     return 1;
   }
-  const { positional, flags } = parseArgs(rest);
+  const { positional, flags } = parseArgs(rest, STDIN_FLAGS);
   const cwd = process.cwd();
   const root = findProjectRoot(process.env.CLAUDE_PROJECT_DIR || cwd) ?? findProjectRoot(cwd);
   if (command.needsProject !== false && !root) {

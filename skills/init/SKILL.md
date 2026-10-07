@@ -10,7 +10,7 @@ TENONRY_INIT_SKILL
 Re-scan and refresh Tenonry for the current project. This is optional: `/tenonry:run` sets up and refreshes the project automatically.
 
 1. Find the plugin root. Use `${CLAUDE_SKILL_DIR}/../..`. If that text appears unexpanded, use the value after `TENONRY_PLUGIN_ROOT=` from the session context.
-2. Run: `node "<plugin root>/scripts/init.mjs" --project "$PWD"`
+2. Run: `node "<plugin root>/scripts/init.mjs"` from the project directory. Init uses the current directory.
 3. Read the JSON result and report to the user in a few short lines:
    - Detected packages and active specialists.
    - Agents written and removed.

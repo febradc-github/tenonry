@@ -3,6 +3,7 @@ name: run
 description: Tenonry. Plan, design, test, build, review, and commit a change with specialist agents. Also shows progress, resumes, undoes, and shows help.
 disable-model-invocation: true
 argument-hint: <what you want> | resume | undo | help
+allowed-tools: Bash(node *), Bash(git rev-parse *)
 ---
 
 TENONRY_RUN_SKILL
@@ -78,23 +79,23 @@ Setup is automatic. Optional: add OPENROUTER_API_KEY to .env for smarter model r
 ## Step 1: setup (automatic, every new request)
 
 1. `git rev-parse --is-inside-work-tree` fails: print `Tenonry needs a git repository. Run git init and commit your files, then try again.` and stop.
-2. Run `node "<plugin root>/scripts/init.mjs" --project "$PWD" --if-changed`.
+2. Run `node "<plugin root>/scripts/init.mjs" --if-changed` from the project directory.
    - `ok: false`: print `Setup failed: <error>.` and stop.
    - `skipped: false`: print the two setup progress lines.
    - `jevKey: false`: print the key tip if it has not been shown.
-3. If `agentsDirCreated` is true: save the request with `tenonry.mjs new-run --prompt-file <temp file containing the request>`, run `tenonry.mjs restart-pending true`, print `Tenonry is set up. Restart Claude Code once so it can load the new agents, then type /tenonry:run to continue.` and stop.
+3. If `agentsDirCreated` is true: save the request by passing it verbatim through a quoted heredoc: `node .tenonry/bin/tenonry.mjs new-run --prompt-stdin <<'TENONRY_REQUEST'`, then the request on the following lines, then a line containing only `TENONRY_REQUEST`. Then run `tenonry.mjs restart-pending true`, print `Tenonry is set up. Restart Claude Code once so it can load the new agents, then type /tenonry:run to continue.` and stop.
 
 ## Step 2: run directory
 
 - If the context for this prompt contains `TENONRY_ROUTE run=<id> ...`, use that run and read `.tenonry/runs/<id>/route.json`.
-- Otherwise write the request to a temporary file, run `tenonry.mjs new-run --prompt-file <file>`, then `tenonry.mjs intake <id>`, and read `route.json`.
+- Otherwise run `tenonry.mjs new-run --prompt-stdin` with the request passed verbatim through a quoted heredoc as in step 1, then `tenonry.mjs intake <id>`, and read `route.json`.
 - When resuming a run whose `route.json` has `fallbackReason: "no_hook"`, run `tenonry.mjs intake <id>` first.
 - If `mainModel.notice` is true, print the Haiku tip.
 
 ## Step 3: intake
 
 - `clarify: yes` or `auto`: print `Clarifying a few details...` and invoke the clarify-intake skill with the run id and mode (`yes` or `auto`).
-- `clarify: no`: write `.tenonry/runs/<id>/brief.md` with a `# Request` heading followed by the request verbatim.
+- `clarify: no`: run `tenonry.mjs write-brief <id>`.
 
 ## Step 4: planning
 

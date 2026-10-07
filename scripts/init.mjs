@@ -13,11 +13,14 @@ import { hasMarker } from "./lib/render.mjs";
 import { isGitRepo } from "./lib/git.mjs";
 import { openRouterKey } from "./lib/env.mjs";
 import {
-  DEFAULT_ROUTING, DEFAULT_LIMITS, DEFAULT_READ_GUARD, DEFAULT_OUTPUT_FILTER, mergePreferExisting, configPath,
+  DEFAULT_ROUTING, DEFAULT_LIMITS, DEFAULT_READ_GUARD, DEFAULT_OUTPUT_FILTER, mergePreferExisting, configPath, isPlainObject,
 } from "./lib/config.mjs";
 import { isMain } from "./lib/main.mjs";
 
-const GITIGNORE_LINES = [".env", ".tenonry/bin/", ".tenonry/state.json", ".tenonry/logs/", ".tenonry/runs/"];
+const GITIGNORE_LINES = [".env", ".tenonry/bin/", ".tenonry/state.json", ".tenonry/logs/", ".tenonry/runs/", ".claude/settings.local.json"];
+// Tenonry's own bookkeeping script, and the design reviewer's browser (decision D-062 for the syntax).
+export const PERMISSION_RULES = ["Bash(node .tenonry/bin/tenonry.mjs *)", "mcp__playwright"];
+const INVALID_SETTINGS_WARNING = "settings.local.json is not valid JSON; add the Tenonry permission rules by hand";
 const BIN_SCRIPTS = ["tenonry.mjs", "exec-filter.mjs", "hook-ownership-guard.mjs"];
 const MIN_NODE_MAJOR = 18;
 
@@ -27,6 +30,39 @@ function pluginVersion(pluginDir) {
 
 function agentsDirOf(root) {
   return path.join(root, ".claude", "agents");
+}
+
+const localSettingsPath = (root) => path.join(root, ".claude", "settings.local.json");
+
+// Returns { settings, missing } for the local settings file, or { invalid: true } when it cannot be merged into.
+function readLocalSettings(root) {
+  const file = localSettingsPath(root);
+  if (!fs.existsSync(file)) return { settings: {}, missing: [...PERMISSION_RULES] };
+  const settings = readJson(file, null);
+  const allow = settings?.permissions?.allow ?? [];
+  const mergeable = isPlainObject(settings) && (settings.permissions === undefined || isPlainObject(settings.permissions)) && Array.isArray(allow);
+  if (!mergeable) return { invalid: true };
+  return { settings, missing: PERMISSION_RULES.filter((rule) => !allow.includes(rule)) };
+}
+
+// Appends the missing rules; every other key and entry keeps its place.
+function ensurePermissionRules(root, { write }) {
+  const state = readLocalSettings(root);
+  if (state.invalid) return { added: false, warning: INVALID_SETTINGS_WARNING };
+  if (state.missing.length === 0) return { added: false };
+  if (write) {
+    const settings = state.settings;
+    settings.permissions = { ...settings.permissions, allow: [...(settings.permissions?.allow ?? []), ...state.missing] };
+    fs.mkdirSync(path.dirname(localSettingsPath(root)), { recursive: true });
+    fs.writeFileSync(localSettingsPath(root), JSON.stringify(settings, null, 2) + "\n");
+  }
+  return { added: true };
+}
+
+function withPermissions(summary, permissions) {
+  summary.permissionsAdded = permissions.added;
+  if (permissions.warning) summary.warnings.push(permissions.warning);
+  return summary;
 }
 
 function skippedResult(root) {
@@ -44,6 +80,8 @@ function isUpToDate(root, version, hash) {
     return false;
   }
   if (installed !== version) return false;
+  // A settings file that cannot be merged into is reported by a full init, not retried on every run.
+  if ((readLocalSettings(root).missing ?? []).length > 0) return false;
   return (config.agents ?? []).every((name) => fs.existsSync(path.join(agentsDirOf(root), `${name}.md`)));
 }
 
@@ -153,8 +191,9 @@ export function runInit({ root, dryRun = false, ifChanged = false }) {
   const summary = {
     ok: true, gitRepo, packages: publicPackages, active, agentsWritten: [...rendered.keys()], agentsRemoved: [],
     agentsDirCreated, verify, preview, jevKey: Boolean(openRouterKey(root)), warnings, skipped: false, manifestHash: hash,
+    permissionsAdded: false,
   };
-  if (dryRun) return { ...summary, dryRun: true };
+  if (dryRun) return { ...withPermissions(summary, ensurePermissionRules(root, { write: false })), dryRun: true };
 
   const existing = readJson(configPath(root), {});
   writeJsonAtomic(configPath(root), {
@@ -181,7 +220,7 @@ export function runInit({ root, dryRun = false, ifChanged = false }) {
   summary.agentsRemoved = removeStaleAgents(root, new Set(agents));
   summary.warnings.push(...agentWarnings);
   ensureGitignore(root);
-  return summary;
+  return withPermissions(summary, ensurePermissionRules(root, { write: true }));
 }
 
 function main() {

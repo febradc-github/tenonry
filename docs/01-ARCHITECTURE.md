@@ -115,6 +115,7 @@ The `library/` directory is deliberately not named `agents/`, so Claude Code doe
     tenonry-design-reviewer.md   (only if a frontend or 3d specialist is active)
     tenonry-<id>.md              (one per active specialist)
     tenonry-review-<id>.md       (one per active specialist)
+  .claude/settings.local.json  (gitignored; init adds two permission rules: Tenonry's script and the review browser)
   .tenonry/
     config.json                (committed)
     ownership.json             (committed)
@@ -137,7 +138,7 @@ The `library/` directory is deliberately not named `agents/`, so Claude Code doe
 
 1. User types `/tenonry:run <request>`.
 2. `hook-prompt-router.mjs` (UserPromptSubmit) sees the `/tenonry:run` prefix. It asks Jev the intake questions (ambiguity, difficulty, task type, UI involvement), creates the run directory and `route.json`, and records the main session's model. It never blocks the prompt. If the project is not set up yet, the hook does nothing and the `run` skill initializes the project, then runs the same intake through `tenonry.mjs intake`.
-3. The `run` skill reads `route.json`. If ambiguity is high, it invokes `clarify-intake`, which questions the user and writes `brief.md`. Otherwise it writes `brief.md` from the request.
+3. The `run` skill reads `route.json`. If ambiguity is high, it invokes `clarify-intake`, which questions the user and saves `brief.md` through `tenonry.mjs write-brief --stdin`. Otherwise `tenonry.mjs write-brief` writes `brief.md` from the request.
 4. `tenonry-planner` writes `plan.md`: goal, scope, non-goals, stories, behavioral acceptance criteria, layers touched, UI involvement. High-level only.
 5. If the plan involves UI, `tenonry-art-director` creates or extends `.tenonry/design-direction.md` and writes the run's `design-brief.md`. On the first UI run in a project that already has an interface, it documents the visual language already in use and keeps it; it creates a new identity only when there is no interface yet or the brief asks for a redesign.
 6. `tenonry-test-author` writes `contract.json` and `contract.md` (tasks, owners, files, dependencies, interfaces, verification) and the failing tests. `tenonry.mjs contract-check` validates it; up to 2 repair rounds.

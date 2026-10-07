@@ -19,7 +19,7 @@ TENONRY_INIT_SKILL
 Re-scan and refresh Tenonry for the current project. This is optional: `/tenonry:run` sets up and refreshes the project automatically.
 
 1. Find the plugin root. Use `${CLAUDE_SKILL_DIR}/../..`. If that text appears unexpanded, use the value after `TENONRY_PLUGIN_ROOT=` from the session context.
-2. Run: `node "<plugin root>/scripts/init.mjs" --project "$PWD"`
+2. Run: `node "<plugin root>/scripts/init.mjs"` from the project directory. Init uses the current directory.
 3. Read the JSON result and report to the user in a few short lines:
    - Detected packages and active specialists.
    - Agents written and removed.
@@ -41,6 +41,7 @@ name: run
 description: Tenonry. Plan, design, test, build, review, and commit a change with specialist agents. Also shows progress, resumes, undoes, and shows help.
 disable-model-invocation: true
 argument-hint: <what you want> | resume | undo | help
+allowed-tools: Bash(node *), Bash(git rev-parse *)
 ---
 
 TENONRY_RUN_SKILL
@@ -116,23 +117,23 @@ Setup is automatic. Optional: add OPENROUTER_API_KEY to .env for smarter model r
 ## Step 1: setup (automatic, every new request)
 
 1. `git rev-parse --is-inside-work-tree` fails: print `Tenonry needs a git repository. Run git init and commit your files, then try again.` and stop.
-2. Run `node "<plugin root>/scripts/init.mjs" --project "$PWD" --if-changed`.
+2. Run `node "<plugin root>/scripts/init.mjs" --if-changed` from the project directory.
    - `ok: false`: print `Setup failed: <error>.` and stop.
    - `skipped: false`: print the two setup progress lines.
    - `jevKey: false`: print the key tip if it has not been shown.
-3. If `agentsDirCreated` is true: save the request with `tenonry.mjs new-run --prompt-file <temp file containing the request>`, run `tenonry.mjs restart-pending true`, print `Tenonry is set up. Restart Claude Code once so it can load the new agents, then type /tenonry:run to continue.` and stop.
+3. If `agentsDirCreated` is true: save the request by passing it verbatim through a quoted heredoc: `node .tenonry/bin/tenonry.mjs new-run --prompt-stdin <<'TENONRY_REQUEST'`, then the request on the following lines, then a line containing only `TENONRY_REQUEST`. Then run `tenonry.mjs restart-pending true`, print `Tenonry is set up. Restart Claude Code once so it can load the new agents, then type /tenonry:run to continue.` and stop.
 
 ## Step 2: run directory
 
 - If the context for this prompt contains `TENONRY_ROUTE run=<id> ...`, use that run and read `.tenonry/runs/<id>/route.json`.
-- Otherwise write the request to a temporary file, run `tenonry.mjs new-run --prompt-file <file>`, then `tenonry.mjs intake <id>`, and read `route.json`.
+- Otherwise run `tenonry.mjs new-run --prompt-stdin` with the request passed verbatim through a quoted heredoc as in step 1, then `tenonry.mjs intake <id>`, and read `route.json`.
 - When resuming a run whose `route.json` has `fallbackReason: "no_hook"`, run `tenonry.mjs intake <id>` first.
 - If `mainModel.notice` is true, print the Haiku tip.
 
 ## Step 3: intake
 
 - `clarify: yes` or `auto`: print `Clarifying a few details...` and invoke the clarify-intake skill with the run id and mode (`yes` or `auto`).
-- `clarify: no`: write `.tenonry/runs/<id>/brief.md` with a `# Request` heading followed by the request verbatim.
+- `clarify: no`: run `tenonry.mjs write-brief <id>`.
 
 ## Step 4: planning
 
@@ -229,6 +230,7 @@ Undo this run: /tenonry:run undo
 ---
 name: clarify-intake
 description: Tenonry intake. Asks the user targeted questions until a Tenonry request is buildable, then writes the run brief.
+allowed-tools: Bash(node *)
 ---
 
 TENONRY_CLARIFY_SKILL
@@ -239,7 +241,7 @@ You were invoked by the Tenonry orchestrator with a run id and a mode (`yes` or 
 2. List the gaps that would change what gets built and cannot be inferred from the request or the repository: scope boundaries, users and roles, behavior and edge cases, data involved, the look and feel or references for any UI, and how success will be judged. Ignore gaps with an obvious sensible default.
 3. Mode `auto` with no material gaps: go to step 5.
 4. Ask with AskUserQuestion: at most 4 questions per round, each with 2 to 4 concrete options and the recommended option first, labeled "(recommended)". Ask only what matters most; skip anything with a sensible default. At most 2 rounds. After the last round, use the recommended option for any gap still open.
-5. Write `.tenonry/runs/<id>/brief.md`:
+5. Save the brief by running `node .tenonry/bin/tenonry.mjs write-brief <id> --stdin` and passing this content through a quoted heredoc (`<<'TENONRY_BRIEF'`, the content, then a line containing only `TENONRY_BRIEF`):
 
 ```
 # Request
@@ -705,4 +707,4 @@ Never edit project files. Write only the review file.
   - `- lint: <lint>` when not null.
   The project-wide `test` command is never rendered for specialists. When the specialist has no matching verify entry, `{{verify}}` renders `- No verification commands are configured for your files.` The literal `{files}` stays in the rendered text.
 - `{{uiRules}}` renders as an empty string for layers `backend` and `data`.
-- The skill texts in sections 1 to 3 contain `${CLAUDE_SKILL_DIR}`, `$ARGUMENTS`, and `$PWD`. These are not render placeholders; ship them as written.
+- The skill texts in sections 1 to 3 contain `${CLAUDE_SKILL_DIR}` and `$ARGUMENTS`. These are not render placeholders; ship them as written.
