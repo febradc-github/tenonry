@@ -190,9 +190,9 @@ Phase 0 entries use the title `Phase 0: V<n> <item>` and a status of Confirmed, 
 - Source: https://code.claude.com/docs/en/hooks.md
 
 ### D-039: Phase 0: V8 prompt text for plugin skills
-- Status: Unverified (the docs do not say whether the hook sees the raw typed text or the expanded skill).
-- Decision: The router matches `/^\s*\/tenonry:run\b/` on the raw prompt. As a defensive fallback it also accepts a prompt containing the marker line `TENONRY_RUN_SKILL` and extracts the request from the text after `The user's input is: ` up to the blank line before `## Rules`. Any other shape exits 0 silently, and the run skill then falls back to `new-run` plus `intake`, so nothing breaks either way.
-- Reason: Fail-open, no dependency on the unverified behavior.
+- Status: Confirmed by a live check (the docs alone did not say).
+- Decision: A throwaway logging hook in a temporary project received `"prompt": "/tenonry:run help"`, the raw typed text, for the plugin skill command (Claude Code 2.1.285, `claude -p`). The router matches `/^\s*\/tenonry:run\b/` on it. As a defensive fallback in case a future version hands the hook the expanded skill instead, it also accepts a prompt containing the marker line `TENONRY_RUN_SKILL` and extracts the request from the text after `The user's input is: ` up to the blank line before `## Rules`. Any other shape exits 0 silently, and the run skill then falls back to `new-run` plus `intake`.
+- Reason: Fail-open; the fallback costs nothing and is covered by tests.
 
 ### D-040: Phase 0: V9 Playwright MCP tool names
 - Status: Confirmed.
@@ -278,3 +278,14 @@ Phase 0 entries use the title `Phase 0: V<n> <item>` and a status of Confirmed, 
 - Context: docs/03 section 6 shows result shapes without an `ok` field, while errors use `ok: false`.
 - Decision: The CLI adds `ok: true` to any result object that lacks `ok`, so callers can always test it. Usage errors (unknown run, task, phase, or missing argument) print `{ok:false,error}` and exit 1; negative results such as an invalid contract exit 0. `new-run` returns `runDir` relative to the project root. `next` returns `running` as the tasks already active before the call (not those it just started) and `remaining` as every task not done or done_with_findings, blocked ones included. `verify` also returns `files` (the attributed changed files). `contract-check` returns `contractFixes` and adds contract tasks that are missing from run.json on every valid check, so a repaired contract can introduce new tasks without resetting existing task state. `review-plan` records the planned kinds in `task.plannedReviews`, deletes stale review files for them, and `review-status` stores `task.reviews` and, on done_with_findings, `task.unresolved` for the report. A final-gate reopen also resets the reopened tasks' review round counters.
 - Reason: Small additions that make the documented flows reliable without changing documented fields.
+
+### D-057: Local install smoke test results (Claude Code 2.1.285)
+- Context: docs/08 asks for a local install smoke test when the CLI is available and authenticated. `claude auth status` reported a logged-in claude.ai account.
+- Decision: In a temporary copy of the `laravel-vue` fixture (git repository, committed) the build ran `claude plugin marketplace add <repo> --scope project`, `claude plugin install tenonry@tenonry-local --scope project`, `claude -p "/tenonry:init"`, and `claude -p "/tenonry:run help"`. Project scope was used so the user's own Claude Code settings were not changed; afterwards the plugin was uninstalled, the marketplace removed (`claude plugin marketplace list` shows no tenonry entry), and the temporary directory deleted. Results: init created `.tenonry/config.json`, `.tenonry/ownership.json`, `.tenonry/bin/`, rubrics, and 18 agents (including `.claude/agents/tenonry-laravel.md`) and reported them correctly; `/tenonry:run help` printed the help block verbatim in one turn. `/tenonry:run <request>` was not run, as docs/08 says.
+- Observations: (1) In `-p` mode the init skill's first command, written with `"$PWD"` as in docs/06, was not auto-approved by `allowed-tools: Bash(node *)` because of the shell variable; the model retried with the absolute path. Interactive sessions would show a permission prompt instead. The skill text is copied verbatim, so it was left as is; `--project` defaults to the current directory, so dropping the flag from the skill text would avoid it. (2) The UserPromptSubmit input in `-p` mode had no `model` field, so the router uses the transcript fallback (and reports `unknown`, which never triggers the Haiku tip). (3) Plugin validation: `claude plugin validate .` and `--strict` pass; the only warning was a missing marketplace description, so `marketplace.json` has a top-level `description`.
+- Reason: Records exactly what was and was not verified live.
+
+### D-058: Live Jev check skipped
+- Context: No `.env` with `OPENROUTER_API_KEY` exists on the build machine.
+- Decision: The live call to `POST /api/alpha/decisions` was not made. The client, request shape, pinned model, timeout, error mapping, and logging are tested against a local `node:http` server and fixtures (tests/jev.test.mjs). The endpoint, body, and response shape were checked against the live OpenRouter documentation (D-042).
+- Reason: Hard limits in CLAUDE.md; recorded in BUILD-REPORT.md.
