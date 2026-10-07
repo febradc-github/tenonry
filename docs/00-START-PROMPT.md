@@ -17,7 +17,7 @@ AUTONOMY RULES (NON-NEGOTIABLE):
 
 PROCESS:
 Phase 0: Run the verification checklist in docs/02-PLATFORM-REFERENCE.md against live documentation. Record each result (confirmed, or changed plus what you will do instead) in docs/DECISIONS.md before writing plugin code.
-Phases 1 to 6: Build slices 1 through 6 from docs/08-BUILD-PLAN-AND-TESTS.md in order. After each slice: run `node --test tests/`, fix until green, then commit locally as `slice N: <summary>`.
+Phases 1 to 6: Build slices 1 through 6 from docs/08-BUILD-PLAN-AND-TESTS.md in order. After each slice: run `node --test`, fix until green, then commit locally as `slice N: <summary>`.
 Final: Run the full test suite, `claude plugin validate .` if available, and the local install smoke test if the claude CLI is available. Then write BUILD-REPORT.md as described in CLAUDE.md and commit it.
 
 QUALITY BAR:

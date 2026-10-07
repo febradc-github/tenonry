@@ -1,6 +1,6 @@
 # 08. Build plan and tests
 
-Six slices, built in order. Each slice ends with `node --test tests/` passing and one local commit `slice N: <summary>`. Tests use only `node:test` and `node:assert/strict`. Tests that need a project create a temporary directory (`fs.mkdtempSync`), copy a fixture into it, and run `git init`, `git add -A`, `git commit -m init` with `-c user.name=test -c user.email=test@example.com`.
+Six slices, built in order. Each slice ends with `node --test` passing and one local commit `slice N: <summary>`. Tests use only `node:test` and `node:assert/strict`. Tests that need a project create a temporary directory (`fs.mkdtempSync`), copy a fixture into it, and run `git init`, `git add -A`, `git commit -m init` with `-c user.name=test -c user.email=test@example.com`.
 
 ## Slice 1: foundations
 
@@ -116,10 +116,27 @@ If any step is unavailable (CLI missing, not authenticated, command shape change
 
 ## Definition of done
 
-1. All six slices are committed and `node --test tests/` passes with zero failures.
+1. All six slices are committed and `node --test` passes with zero failures.
 2. Phase 0 results for V1 to V10 are recorded in `docs/DECISIONS.md`, and the implementation matches them.
 3. `catalog-check` passes; the shipped catalog equals docs/05 byte for byte.
 4. Agent, skill, and rubric texts match docs/06 and docs/07 except for documented placeholders (a test compares them).
 5. No shipped file contains U+2014; no runtime dependency exists in any `package.json` (a dev-only `package.json` with a `test` script is allowed).
 6. `claude plugin validate .` passes, or its skip is recorded with the reason.
 7. `BUILD-REPORT.md` exists and lists: what was built, test totals, skipped checks with reasons, and every decision added during the build.
+
+## Revision 0.2.0 tests
+
+The fixes in `docs/FIX-0.2.0.md` each list their required tests. Where they live:
+
+- F1 (generators): `tests/agents-render.test.mjs` (rendered `eloquent` and `prisma`, test author bullet) and `tests/lifecycle.test.mjs` (a generated file named differently from the contract).
+- F2 (task-scoped verification): `tests/agents-render.test.mjs` (`laravel-vue`, `monorepo` suffix, null `testFiles`, no unrendered placeholder).
+- F3 (styling and Angular ownership): `tests/ownership.test.mjs` (the ten resolution cases and the `angular-scss` fixture).
+- F4 (existing identity): `tests/agents-render.test.mjs` (art director and design reviewer texts).
+- F5 (permission prompts): `tests/permissions.test.mjs` (`new-run --prompt-stdin`, `write-brief`, `settings.local.json`, `--if-changed`, skill texts).
+- F6 (preview and sign-in): `tests/preview.test.mjs` (`preview-start`, `preview-stop`, `preview-credentials`) and `tests/review.test.mjs` (`login:` line, no credential in any delegation, log, or run file).
+- F7 (unrendered reviews, pinned browser): `tests/review.test.mjs` (unrendered reviews ending as done_with_findings, attention notes, showcase boundary) and `tests/shipped-files.test.mjs` (removed status, pinned version).
+- F8 (Python superseded): `tests/detect.test.mjs` (`django` fixture, FastAPI, Flask, plain Python).
+- F9 (UI review rules): `tests/agents-render.test.mjs` (rendered reviewers) and `tests/review.test.mjs` (code review delegations for `ui` tasks).
+- F10 (scoring profiles): `tests/review.test.mjs` (product at 7.50, showcase failure, innovation 4, missing profile, tables summing to 1.00).
+- F11 (live Jev): `tests/jev-live.test.mjs`, skipped unless `TENONRY_LIVE=1` and a key in the repository `.env`.
+- F12 (housekeeping): `tests/skills.test.mjs` and `tests/init.test.mjs` (version 0.2.0, README order).

@@ -9,7 +9,7 @@ All paths are relative to the plugin root unless marked `<project>`. Every JSON 
 ```json
 {
   "name": "tenonry",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Specialist multi-agent pipeline: Jev-routed models, spec-first tests, single-owner files, design and code reviewers.",
   "author": { "name": "Dan Christian Febra" },
   "keywords": ["agents", "orchestration", "jev", "openrouter", "code-quality", "design"]
@@ -21,9 +21,10 @@ All paths are relative to the plugin root unless marked `<project>`. Every JSON 
 ```json
 {
   "name": "tenonry-local",
+  "description": "Local marketplace for the Tenonry plugin.",
   "owner": { "name": "Dan Christian Febra" },
   "plugins": [
-    { "name": "tenonry", "source": "./", "description": "Specialist multi-agent pipeline with Jev routing.", "version": "0.1.0" }
+    { "name": "tenonry", "source": "./", "description": "Specialist multi-agent pipeline with Jev routing.", "version": "0.2.0" }
   ]
 }
 ```
@@ -227,7 +228,7 @@ Two priority bands in the catalog are deliberate. The styling specialists (`css`
 {
   "version": 1,
   "plugin": "tenonry",
-  "pluginVersion": "0.1.0",
+  "pluginVersion": "0.2.0",
   "initializedAt": "<ISO>",
   "packages": [
     { "root": ".", "packageManager": "npm", "specialists": ["laravel", "eloquent", "vue", "tailwind", "html", "php", "nodejs"] }

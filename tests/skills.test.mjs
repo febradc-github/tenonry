@@ -75,13 +75,13 @@ test("every agent mentioned in delegations exists in the library", () => {
 test("the plugin manifests carry the documented metadata", () => {
   const plugin = JSON.parse(read(".claude-plugin", "plugin.json"));
   assert.equal(plugin.name, "tenonry");
-  assert.equal(plugin.version, "0.1.0");
+  assert.equal(plugin.version, "0.2.0");
   assert.deepEqual(plugin.author, { name: "Dan Christian Febra" });
   assert.equal(plugin.license, undefined);
   assert.equal(plugin.repository, undefined);
   const market = JSON.parse(read(".claude-plugin", "marketplace.json"));
   assert.equal(market.name, "tenonry-local");
-  assert.deepEqual(market.plugins[0], { name: "tenonry", source: "./", description: "Specialist multi-agent pipeline with Jev routing.", version: "0.1.0" });
+  assert.deepEqual(market.plugins[0], { name: "tenonry", source: "./", description: "Specialist multi-agent pipeline with Jev routing.", version: "0.2.0" });
 });
 
 test("the user README follows the required order and says the license is not chosen", () => {
@@ -118,4 +118,25 @@ test("claude plugin validate passes when the CLI is available", { skip: spawnSyn
 test("claude plugin validate --strict also passes", { skip: spawnSync("claude", ["--version"]).status !== 0 && "claude CLI not available" }, () => {
   const result = spawnSync("claude", ["plugin", "validate", ".", "--strict"], { cwd: repoRoot, encoding: "utf8", timeout: 60000 });
   assert.equal(result.status, 0, result.stdout + result.stderr);
+});
+
+test("F12: the README changelog lists the eleven 0.2.0 changes and the automatic re-render", () => {
+  const readme = read("README.md");
+  const section = readme.slice(readme.indexOf("### 0.2.0"), readme.indexOf("### 0.1.0"));
+  assert.equal(section.split("\n").filter((line) => line.startsWith("- ")).length, 11);
+  assert.match(section, /re-renders that project's agents/);
+  assert.ok(readme.indexOf("## Changelog") < readme.indexOf("## License"));
+});
+
+test("F12: every manifest and the dev package agree on the version", () => {
+  const version = JSON.parse(read(".claude-plugin", "plugin.json")).version;
+  assert.equal(version, "0.2.0");
+  assert.equal(JSON.parse(read(".claude-plugin", "marketplace.json")).plugins[0].version, version);
+  assert.equal(JSON.parse(read("package.json")).version, version);
+});
+
+test("F12: no document still tells anyone to run node --test with a directory", () => {
+  for (const file of ["CLAUDE.md", "README.md", path.join("docs", "08-BUILD-PLAN-AND-TESTS.md"), path.join("docs", "00-START-PROMPT.md")]) {
+    assert.ok(!read(file).includes("node --test tests/"), file);
+  }
 });

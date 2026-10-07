@@ -185,6 +185,8 @@ Fallbacks: if Jev times out, errors, or no key exists, tasks run on sonnet (resp
 - **Plain progress.** One short line per event, in the formats defined in `docs/06-AGENT-AND-SKILL-TEXTS.md` section 2.
 - **Clear ending.** The final message says what changed, how to try it, what needs attention, and how to undo.
 - **Safe undo.** `/tenonry:run undo` reverts the run's commits with new revert commits, stopping cleanly on conflicts.
+- **Few permission prompts.** Skills declare the tools they use, requests and briefs reach `tenonry.mjs` through standard input instead of temporary files, and setup adds two allow rules to the user's local settings (`.claude/settings.local.json`): Tenonry's own bookkeeping script and the review browser. Nothing else is auto-approved.
+- **Signed-in screens get reviewed.** With an optional local test account in `.env`, the design reviewer signs in before it looks. Tenonry starts the preview server when it is not running and stops only the one it started. When a screen cannot be rendered, the summary says why and what to do, and the design is never passed on guesses.
 
 ## 9. Cost controls
 

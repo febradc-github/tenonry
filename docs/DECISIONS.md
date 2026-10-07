@@ -378,3 +378,8 @@ Work order: `docs/FIX-0.2.0.md`. Entries start at D-061.
 - Context: Jev was only tested against a local stand-in (D-058).
 - Decision: `tests/jev-live.test.mjs` calls the real client once with the dispatch questions and a fixed task state when `TENONRY_LIVE=1` is set and the repository `.env` holds `OPENROUTER_API_KEY`. Otherwise it is skipped with a reason, so the normal suite stays offline. It never prints the key. During this revision no `.env` existed at the repository root, so the live call was not made; the test was run with `TENONRY_LIVE=1` to confirm it skips with `no OPENROUTER_API_KEY in the repository .env`. The skip is recorded in BUILD-REPORT.md.
 - Reason: One command gives real evidence the moment a key is available, without making the suite depend on the network.
+
+### D-075: Housekeeping for 0.2.0 (F12)
+- Context: Version, test command wording, and documents had to follow the fixes.
+- Decision: The version is 0.2.0 in `plugin.json`, `marketplace.json`, the dev `package.json`, and the examples in docs/03 (which now also show the marketplace `description` added in 0.1.0). Code reads the version only from `plugin.json`, so `config.pluginVersion`, `.tenonry/bin/VERSION`, and the manifest hash follow automatically, and existing projects re-render on their next run; the README changelog says so. `node --test tests/` became `node --test` in `CLAUDE.md`, `docs/08`, and also `docs/00-START-PROMPT.md`, which the work order did not name but which carried the same broken command. docs/01 section 8 gained the two user experience bullets, and docs/08 gained "Revision 0.2.0 tests".
+- Reason: One version everywhere, and no document that tells a reader to run a command that fails.

@@ -36,7 +36,7 @@ The only things you may not decide alone are listed under "Hard limits" below. E
 
 ## Commands
 
-- Run all tests: `node --test tests/`
+- Run all tests: `node --test`
 - Validate the plugin: `claude plugin validate .` (skip if the CLI is unavailable)
 - Validate the catalog: `node scripts/tenonry.mjs catalog-check`
 - Install locally for a smoke test: see `docs/08-BUILD-PLAN-AND-TESTS.md`, section "Local install"

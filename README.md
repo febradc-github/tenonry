@@ -100,6 +100,28 @@ After about 20 tasks, `node .tenonry/bin/tenonry.mjs calibrate` compares Jev's c
 
 Delete `.claude/agents/tenonry-*.md` and the `.tenonry/` directory. Then uninstall the plugin with `claude plugin uninstall tenonry`.
 
+## Changelog
+
+### 0.2.0
+
+Updating to 0.2.0 needs nothing from you: the next `/tenonry:run` in a project notices the new plugin version and re-renders that project's agents, rubrics, and scripts.
+
+- Builders may run their framework's own generators and migration tools for files they own.
+- Builders check their work with their own task's tests only, never the whole suite.
+- Styling specialists own every stylesheet, wherever it lives; Angular owns its component templates.
+- On an existing app, the art director documents the current look and keeps it instead of inventing a new one.
+- Fewer approval prompts: skills declare their tools, requests travel through standard input, and setup adds two local allow rules.
+- The design reviewer can sign in with a local test account, and Tenonry starts and stops the preview itself.
+- A design review that could not render the page never passes on guesses; the summary says how to get a visual check. The review browser version is pinned.
+- Django, FastAPI, and Flask projects no longer get an unused Python agent.
+- Code reviewers of frontend work check the UI rules: tokens only, every state built, accessibility in code.
+- Design scoring has two profiles: showcase pages are judged as award work, product screens as tools.
+- An opt-in test makes one real call to Jev (`TENONRY_LIVE=1 node --test tests/jev-live.test.mjs`).
+
+### 0.1.0
+
+First version.
+
 ## Development
 
 The build documents are in `docs/`. Run the tests with `node --test`; the plugin has no dependencies.
