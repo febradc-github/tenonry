@@ -17,7 +17,7 @@ Source: https://code.claude.com/docs/en/sub-agents.md
 - Scopes and priority: managed settings, `--agents` CLI flag, project `.claude/agents/`, user `~/.claude/agents/`, plugin `agents/` (lowest). `.claude/agents/` is scanned recursively; identity comes from `name` only.
 - **Plugin subagents ignore `hooks`, `mcpServers`, and `permissionMode`.** Project subagents honor them. This is why Tenonry renders agents into the project.
 - Project subagent frontmatter hooks run only after the user trusts the folder; until then the subagent runs without them and Claude Code logs an error to the debug log.
-- Inline `mcpServers` in project agent files load only after folder trust. Inline definitions use the `.mcp.json` server schema keyed by server name. Example from the docs: `playwright` with `type: stdio`, `command: npx`, `args: ["-y", "@playwright/mcp@latest"]`.
+- Inline `mcpServers` in project agent files load only after folder trust. Inline definitions use the `.mcp.json` server schema keyed by server name. Example from the docs: `playwright` with `type: stdio`, `command: npx`, `args: ["-y", "@playwright/mcp@latest"]`. Tenonry 0.2.0 pins the version and passes `--headless`, `--isolated`, and `--output-dir` (decision D-061).
 - `skills` preloads full skill content at subagent startup; skills with `disable-model-invocation: true` cannot be preloaded.
 - Subagents never receive `AskUserQuestion`, `EnterPlanMode`, or `Workflow`. Background subagents keep a reduced built-in tool set that includes `Read`, `Grep`, `Glob`, `LSP`, `Bash`, `Edit`, `Write`, `NotebookEdit`, `WebFetch`, `WebSearch`, `TodoWrite`, `Skill`, `SendMessage`, and all MCP tools.
 - Subagents can nest up to three layers by default. Default concurrent subagent limit: 20.

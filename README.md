@@ -93,6 +93,7 @@ After about 20 tasks, `node .tenonry/bin/tenonry.mjs calibrate` compares Jev's c
 - Claude Code
 - Node.js 18 or newer
 - git, with your project inside a git repository
+- Google Chrome, for the visual design review of UI work. Without it the work still completes, and the summary tells you the design was not visually checked. Install it with `npx @playwright/mcp@0.0.83 install-browser chrome`
 - macOS, Linux, or WSL
 
 ## Remove Tenonry from a project

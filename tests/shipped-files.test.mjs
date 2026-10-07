@@ -65,3 +65,24 @@ test("no package.json declares runtime dependencies", () => {
     assert.equal(pkg.dependencies, undefined, file);
   }
 });
+
+test("F7: pass_unrendered is gone from code, tests, shipped texts, and the specs", () => {
+  const dirs = [...SHIPPED_DIRS, "tests", "docs"];
+  // The work order and the decision log describe the removed status by name, on purpose.
+  const exempt = new Set(["docs/FIX-0.2.0.md", "docs/DECISIONS.md", "tests/shipped-files.test.mjs"]);
+  const files = [...dirs.flatMap((d) => walk(path.join(repoRoot, d))), path.join(repoRoot, "README.md"), path.join(repoRoot, "CLAUDE.md")];
+  for (const file of files) {
+    if (exempt.has(path.relative(repoRoot, file).split(path.sep).join("/"))) continue;
+    assert.ok(!fs.readFileSync(file, "utf8").includes("pass_" + "unrendered"), file);
+  }
+});
+
+test("F7: the design reviewer pins the Playwright server to the version the install command names", async () => {
+  const { PLAYWRIGHT_MCP_VERSION, BROWSER_INSTALL_COMMAND } = await import("../scripts/lib/review.mjs");
+  const text = fs.readFileSync(path.join(repoRoot, "library", "core", "design-reviewer.md"), "utf8");
+  const frontmatter = text.split("\n---\n")[0];
+  assert.ok(!frontmatter.includes("@latest"));
+  assert.ok(frontmatter.includes(`      args: ["-y", "@playwright/mcp@${PLAYWRIGHT_MCP_VERSION}", "--headless", "--isolated", "--output-dir", ".tenonry/logs/screenshots"]`));
+  assert.equal(BROWSER_INSTALL_COMMAND, `npx @playwright/mcp@${PLAYWRIGHT_MCP_VERSION} install-browser chrome`);
+  assert.match(PLAYWRIGHT_MCP_VERSION, /^\d+\.\d+\.\d+$/);
+});

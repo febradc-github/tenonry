@@ -190,7 +190,9 @@ export function checkpoint(root, runId, taskId) {
   const def = taskDefinition(ctx, taskId);
   const task = runTask(ctx, taskId);
   const finish = (result) => {
-    if (task.status !== "done_with_findings") task.status = "done";
+    // A design review that never rendered the page is a finding in itself (docs/03 section 6.5).
+    const unreviewed = task.reviews?.design === "unrendered";
+    if (task.status !== "done_with_findings") task.status = unreviewed ? "done_with_findings" : "done";
     ctx.save();
     return result;
   };

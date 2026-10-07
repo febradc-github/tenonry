@@ -78,7 +78,7 @@ Tests (temporary git repos from `laravel-vue` and `monorepo`, Jev via fixtures):
 - `next`: dependency order, `maxParallel`, one active task per owner, model mapping with floors, escalation tier reuse, delegation text exactly as docs/03 section 6.10.
 - `verify`: pass and fail paths with a fake test command (configure `testFiles` as `sh -c 'exit 1'` style scripts inside the fixture), retries, escalation to the next tier after two failures, blocked after opus fails twice, scoped typecheck rule, outcome log lines.
 - `ownership-check` and `revert-violations`: a violation in a tracked file and a new untracked file.
-- `review-plan` and `review-status`: weighted score recomputation, `pass_unrendered`, missing file as error, round limits leading to `done_with_findings`.
+- `review-plan` and `review-status`: weighted score recomputation, unrendered reviews ending as done_with_findings, missing file as error, round limits leading to `done_with_findings`.
 - `checkpoint`: commits exactly the task's files with the right message; skips cleanly when nothing changed.
 - `owner`: rules hit, Jev accept, Jev low confidence falling back to the heuristic, `none`.
 - `handoff`: creates follow-up tasks and re-queues the original.

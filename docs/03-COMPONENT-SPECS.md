@@ -544,7 +544,7 @@ Single CLI used by the `run` skill. Run from the project as `node .tenonry/bin/t
 | `revert-violations <run> <task>` | Restores each violation path with `git.restore`; returns `{ restored: [...], failed: [...] }` |
 | `review-plan <run> <task>` | Section 6.4 |
 | `review-status <run> <task>` | Section 6.5 |
-| `checkpoint <run> <task>` | Recomputes `changedFiles` exactly as `verify` step 1 does, then commits them with message `tenonry(<task>): <title>`. Sets status `done` unless already `done_with_findings`. Not a git repo or nothing changed: `{ skipped: <reason> }` and the status still updates. Commit failure (for example a pre-commit hook rejecting it): `{ skipped: "commit_failed", error }`, note added to the task, status still updates. Otherwise returns `{ sha }` |
+| `checkpoint <run> <task>` | Recomputes `changedFiles` exactly as `verify` step 1 does, then commits them with message `tenonry(<task>): <title>`. Sets status `done` unless already `done_with_findings`; when the task's latest design status is `unrendered`, sets `done_with_findings` instead of `done`. Not a git repo or nothing changed: `{ skipped: <reason> }` and the status still updates. Commit failure (for example a pre-commit hook rejecting it): `{ skipped: "commit_failed", error }`, note added to the task, status still updates. Otherwise returns `{ sha }` |
 | `owner <path> --run <run> [--purpose <text>]` | Section 6.6 |
 | `handoff <run> <task>` | Reads the task report. For each handoff path, resolves the owner with the `owner` logic. Groups paths by owner; for each owner that is not the task's own owner, appends a follow-up task to `contract.json` and `run.json`: id `T<next number>`, that owner, those files, summary `Needed by <task>: <reasons>`, acceptance `["Provides what <task> needs: <reasons>"]`, empty tests, `ui` true when the owner's layer is frontend or 3d. Adds the new ids to the original task's `dependsOn` and sets it back to `pending` (tier unchanged). Paths with no resolvable owner get a task note and are skipped. Returns `{ created: [ids], unresolved: [paths] }`. This command is the only writer of `contract.json` besides the test author |
 | `task-files <run> <task>` | Returns `{ files: changedFiles }` |
@@ -599,11 +599,23 @@ Using `git.diffSince(baseline)`: each changed path is attributed to this task if
 
 1. For each reviewer kind planned this round, read `reviews/<task>.<kind>.json`. Missing or schema-invalid: status `error`.
 2. Code pass: no finding with severity `blocking` or `major`.
-3. Design: recompute `weighted` from `scores` with weights ux 0.15, visual 0.15, content 0.10, accessibility 0.10, performance 0.20, responsive 0.10, innovation 0.20 (rounded to 2 decimals; ignore the reviewer's own figure). Pass when `weighted >= 7.5`, every score `>= 6`, and no `blocking` finding. When `rendered` is false and those conditions hold, status `pass_unrendered` (counts as pass, flagged in the report).
-4. `overall`: `pass` when every planned kind passes. An `error` counts as fail for that round.
+3. Design: if `rendered` is false, the design status is `unrendered`. It never triggers a fix round, and the task's final status becomes `done_with_findings` with the attention note for its `unrenderedReason` (section 6.8). Otherwise recompute `weighted` from `scores` using the weights of the review's `profile` (a missing or invalid profile counts as `showcase`), rounded to 2 decimals, ignoring the reviewer's own figure. Pass when `weighted >= 7.5`, no finding is `blocking`, and every score is at least 6, except that on `product` screens `innovation` needs only 5.
+4. `overall`: `pass` when every planned kind passes or is `unrendered`. An `error` counts as fail for that round.
 5. On fail: if any failing kind has reached its round limit (`maxDesignRounds`, `maxCodeReviewRounds`), set status `done_with_findings` and `action: "checkpoint"`; otherwise `action: "fix"`.
 6. On pass: `action: "checkpoint"`.
-7. Return `{ design, code, overall, action, feedback, delegation }`. `feedback` lists findings as `- [severity] file:line problem -> fix`. `delegation` is the fix-mode message for `fix`, else `null`.
+7. Return `{ design, code, overall, action, feedback, delegation }`. `feedback` lists findings as `- [severity] file:line problem -> fix`. `delegation` is the fix-mode message for `fix`, else `null`. `design` carries `status` (`pass`, `fail`, `unrendered`, or `error`) and, when rendered, `profile` and `weighted`; when unrendered, `unrenderedReason`. The task records the latest statuses in `reviews` and the latest `unrenderedReason`.
+
+Profile weights (identical to `library/rubrics/design.md`; each column sums to 1.00):
+
+| Criterion | showcase | product |
+|---|---|---|
+| ux | 0.15 | 0.25 |
+| visual | 0.15 | 0.15 |
+| content | 0.10 | 0.05 |
+| accessibility | 0.10 | 0.15 |
+| performance | 0.20 | 0.15 |
+| responsive | 0.10 | 0.15 |
+| innovation | 0.20 | 0.10 |
 
 ### 6.6 `owner`
 
@@ -622,6 +634,18 @@ Using `git.diffSince(baseline)`: each changed path is attributed to this task if
 ### 6.8 `report`
 
 `report.md` sections, in order: title and run id; request; outcome counts by status; table of tasks (id, owner, final model, attempts, review results, commit); unresolved review findings; blocked tasks with reasons; final gate result; Jev usage (decision count, fallbacks, total cost from the log); skipped steps; paths to logs.
+
+Attention notes (`summary.attention`, also listed under skipped steps in `report.md`). For each task whose design status is `unrendered`, exactly one note:
+
+| `unrenderedReason` | Note |
+|---|---|
+| `needs_login` | `Design for <task> was not visually checked: the screen needs a signed-in user. Add TENONRY_PREVIEW_USER and TENONRY_PREVIEW_PASSWORD (a local test account) to .env.` |
+| `browser_missing` | `Design for <task> was not visually checked: the review browser is not installed. Run: <install command>` |
+| `preview_failed` | `Design for <task> was not visually checked: the preview server did not start. See .tenonry/logs/preview.log.` |
+| `no_preview` | `Design for <task> was not visually checked: no preview command was detected. Set "preview" in .tenonry/config.json.` |
+| anything else | `Design for <task> was not visually checked: <reason>.` (`no reason was given` when the review names none) |
+
+`<install command>` is one constant in code, `npx @playwright/mcp@0.0.83 install-browser chrome`: the pinned review server launches the installed Google Chrome by default, and this is the install command the server itself prints when the browser is missing (decision D-061).
 
 ### 6.9 `calibrate`
 

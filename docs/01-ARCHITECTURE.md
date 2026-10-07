@@ -173,6 +173,7 @@ Fallbacks: if Jev times out, errors, or no key exists, tasks run on sonnet (resp
 - Every subagent failure is recorded in `run.json` and surfaced in `report.md`. The orchestrator never asks the user to fix a task mid-run; it continues with independent tasks and reports blocked ones at the end.
 - A missing or outdated `.tenonry/config.json` makes `/tenonry:run` initialize or refresh the project automatically. If initialization created `.claude/agents/` for the first time, Claude Code needs one restart to see the new agents; the run is saved, and typing `/tenonry:run` after the restart continues it.
 - A project that is not a git repository makes `/tenonry:run` stop with an explanation, because checkpoints and ownership checks need git.
+- A design review that could not render the page (no preview, preview failed, browser missing, or a login it could not pass) never passes on scores guessed from code. It does not start a fix round either: the task is committed as `done_with_findings`, and the final summary says what to do to get a visual review next time.
 
 ## 8. User experience rules
 

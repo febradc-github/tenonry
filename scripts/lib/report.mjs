@@ -5,6 +5,7 @@ import { readState, loadRun, saveRun } from "./state.mjs";
 import { readDecisionLog } from "./jev.mjs";
 import { loadConfig } from "./config.mjs";
 import { runDir } from "./paths.mjs";
+import { unrenderedNote } from "./review.mjs";
 
 const PHASE_WORDS = {
   intake: "Clarifying the request",
@@ -110,7 +111,8 @@ export function report(root, runId) {
 
   const unresolved = tasks.filter(([, t]) => t.status === "done_with_findings" && t.unresolved?.length);
   const blocked = tasks.filter(([, t]) => t.status === "blocked");
-  const skipped = tasks.flatMap(([id, t]) => t.notes.filter((n) => n.startsWith("skipped")).map((n) => `${id}: ${n}`));
+  const unrendered = tasks.filter(([, t]) => t.reviews?.design === "unrendered").map(([id, t]) => unrenderedNote(id, t.unrenderedReason));
+  const skipped = [...tasks.flatMap(([id, t]) => t.notes.filter((n) => n.startsWith("skipped")).map((n) => `${id}: ${n}`)), ...unrendered];
   const gate = run.finalGate?.result ?? "not run";
 
   const md = [];
@@ -143,6 +145,7 @@ export function report(root, runId) {
   const attention = [
     ...blocked.map(([id, t]) => `${id} blocked: ${blockReason(t)}`),
     ...unresolved.map(([id, t]) => `${id} has ${t.unresolved.length} unresolved review notes`),
+    ...unrendered,
     ...(run.finalGate?.result === "fail" ? ["the final checks failed"] : []),
   ];
   return {

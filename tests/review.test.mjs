@@ -162,7 +162,7 @@ test("review-status: design weighted score is recomputed and the pass rule appli
   const low = s.cli("review-status", s.runId, task);
   assert.equal(low.design.weighted, 7.3, "the reviewer's own figure is ignored");
   assert.equal(low.design.status, "fail");
-  assert.match(low.feedback, /^- \[design\] weighted score 7\.3/);
+  assert.match(low.feedback, /^- \[design\] showcase weighted score 7\.3/);
 
   plan();
   s.review(task, "code", codeReview(task));
@@ -179,16 +179,97 @@ test("review-status: design weighted score is recomputed and the pass rule appli
   assert.match(blocking.feedback, /- \[blocking\] resources\/js\/Pages\/Loyalty\.vue No focus ring\. -> Add one\./);
 });
 
-test("review-status: an unrendered design review that meets the bar is pass_unrendered", () => {
+test("F7: an unrendered design review never passes on guessed scores: checkpoint, then done_with_findings", () => {
   const { s, task } = reviewing({ ui: true });
   s.cli("review-plan", s.runId, task);
   s.review(task, "code", codeReview(task));
-  s.review(task, "design", designReview(task, SCORES, [], { rendered: false }));
+  s.review(task, "design", designReview(task, SCORES, [], { rendered: false, unrenderedReason: "needs_login" }));
   const status = s.cli("review-status", s.runId, task);
-  assert.equal(status.design.status, "pass_unrendered");
-  assert.equal(status.design.rendered, false);
+  assert.deepEqual(status.design, { status: "unrendered", rendered: false, unrenderedReason: "needs_login" });
   assert.equal(status.overall, "pass");
   assert.equal(status.action, "checkpoint");
+  assert.equal(status.delegation, null);
+  assert.equal(status.feedback, "");
+  assert.equal(s.run().tasks[task].status, "reviewing", "review-status leaves the final status to checkpoint");
+
+  assert.ok(s.cli("checkpoint", s.runId, task).sha);
+  const saved = s.run().tasks[task];
+  assert.equal(saved.status, "done_with_findings");
+  assert.equal(saved.reviews.design, "unrendered");
+  assert.equal(saved.unrenderedReason, "needs_login");
+});
+
+const UNRENDERED_NOTES = {
+  needs_login: "Design for T3 was not visually checked: the screen needs a signed-in user. Add TENONRY_PREVIEW_USER and TENONRY_PREVIEW_PASSWORD (a local test account) to .env.",
+  browser_missing: "Design for T3 was not visually checked: the review browser is not installed. Run: npx @playwright/mcp@0.0.83 install-browser chrome",
+  preview_failed: "Design for T3 was not visually checked: the preview server did not start. See .tenonry/logs/preview.log.",
+  no_preview: 'Design for T3 was not visually checked: no preview command was detected. Set "preview" in .tenonry/config.json.',
+  "the page crashed on load": "Design for T3 was not visually checked: the page crashed on load.",
+};
+
+for (const [reason, note] of Object.entries(UNRENDERED_NOTES)) {
+  test(`F7: the report carries exactly one attention note for an unrendered review (${reason})`, () => {
+    const { s, task } = reviewing({ ui: true });
+    s.cli("review-plan", s.runId, task);
+    s.review(task, "code", codeReview(task));
+    s.review(task, "design", { task, rendered: false, unrenderedReason: reason, scores: SCORES, findings: [] });
+    assert.equal(s.cli("review-status", s.runId, task).action, "checkpoint");
+    s.cli("checkpoint", s.runId, task);
+    const report = s.cli("report", s.runId);
+    assert.deepEqual(report.summary.attention, [note]);
+    assert.equal(report.summary.tasks.find((t) => t.id === task).status, "done_with_findings");
+    const md = fs.readFileSync(`${s.root}/${report.path}`, "utf8");
+    assert.ok(md.includes(`- ${note}`));
+    assert.match(md, /code pass, design unrendered/);
+  });
+}
+
+test("F7: an unrendered review without a reason, scores, or findings still counts as unrendered", () => {
+  const { s, task } = reviewing({ ui: true });
+  s.cli("review-plan", s.runId, task);
+  s.review(task, "code", codeReview(task));
+  s.review(task, "design", { task, rendered: false });
+  const status = s.cli("review-status", s.runId, task);
+  assert.deepEqual(status.design, { status: "unrendered", rendered: false, unrenderedReason: null });
+  s.cli("checkpoint", s.runId, task);
+  assert.deepEqual(s.cli("report", s.runId).summary.attention, ["Design for T3 was not visually checked: no reason was given."]);
+});
+
+test("F7: an unrendered design review never starts a fix round, but a failing code review still does", () => {
+  const { s, task } = reviewing({ ui: true });
+  s.cli("review-plan", s.runId, task);
+  s.review(task, "code", codeReview(task, [{ severity: "major", file: "a.vue", line: 3, problem: "p", fix: "f" }]));
+  s.review(task, "design", designReview(task, { ...SCORES, visual: 1 }, [{ severity: "blocking", criterion: "visual", problem: "guess", fix: "guess" }], { rendered: false, unrenderedReason: "preview_failed" }));
+  const status = s.cli("review-status", s.runId, task);
+  assert.equal(status.overall, "fail");
+  assert.equal(status.action, "fix");
+  assert.equal(status.feedback, "- [major] a.vue:3 p -> f", "feedback holds only the code finding, never guessed design findings");
+});
+
+test("F7: a later rendered review clears the unrendered state", () => {
+  const { s, task } = reviewing({ ui: true });
+  s.cli("review-plan", s.runId, task);
+  s.review(task, "code", codeReview(task));
+  s.review(task, "design", { task, rendered: false, unrenderedReason: "browser_missing" });
+  s.cli("review-status", s.runId, task);
+  s.cli("review-plan", s.runId, task);
+  s.review(task, "code", codeReview(task));
+  s.review(task, "design", designReview(task));
+  assert.equal(s.cli("review-status", s.runId, task).design.status, "pass");
+  s.cli("checkpoint", s.runId, task);
+  const saved = s.run().tasks[task];
+  assert.deepEqual([saved.status, saved.unrenderedReason], ["done", null]);
+});
+
+test("F7: a rendered showcase review exactly at the pass boundary still passes", () => {
+  const { s, task } = reviewing({ ui: true });
+  const boundary = { ux: 8, visual: 8, content: 7, accessibility: 7, performance: 8, responsive: 7, innovation: 7 };
+  s.cli("review-plan", s.runId, task);
+  s.review(task, "code", codeReview(task));
+  s.review(task, "design", designReview(task, boundary, [], { profile: "showcase" }));
+  const status = s.cli("review-status", s.runId, task);
+  assert.deepEqual(status.design, { status: "pass", profile: "showcase", weighted: 7.5, rendered: true, findings: 0 });
+  assert.equal(status.overall, "pass");
 });
 
 test("review-status: design rounds allow three tries before done_with_findings", () => {
