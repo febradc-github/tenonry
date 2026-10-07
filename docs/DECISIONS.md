@@ -258,3 +258,23 @@ Phase 0 entries use the title `Phase 0: V<n> <item>` and a status of Confirmed, 
 - Context: docs/03 section 8.2 puts `runIntake` and `currentModelFamily` in `scripts/lib/routing.mjs`, and section 2.10 puts run creation in `state.mjs`.
 - Decision: As specified. The router calls `state.newRun` before `runIntake`, so a run exists even when Jev fails (route.json then holds the fallback). A prompt whose request is empty or one of `resume|continue|undo|help|status` creates no run. A request that merely begins with such a word ("help the customers...") is a real request.
 - Reason: Matches the spec and keeps passive commands free of side effects.
+
+### D-053: Owner heuristic and brace globs
+- Context: docs/03 section 6.6 step 3 picks "the first active specialist (catalog order) having an `owns` glob that ends with the path's extension". Many globs end in a brace group (`**/*.{js,mjs,cjs,ts}`), and a literal suffix test would pick an unrelated specialist whose glob merely mentions the extension (for example `middleware.{ts,js}`).
+- Decision: Braces are expanded first. Pass one looks for a glob equal to `**/*<ext>`; pass two accepts any alternative ending with `<ext>`. Candidates are the active specialists of the package that contains the path (longest package root), falling back to all active specialists. A file without an extension has no heuristic owner.
+- Reason: Same intent as the spec with fewer wrong picks; the heuristic is a fallback after rules and Jev.
+
+### D-054: Undo ignores files that Tenonry itself generates
+- Context: docs/03 section 6.12 refuses to undo when the working tree has uncommitted changes outside `.tenonry/`. After the first init, `.gitignore` and `.claude/agents/tenonry-*.md` are uncommitted, so the first undo would always be refused.
+- Decision: The dirty check ignores `.tenonry/`, `.claude/agents/tenonry-*.md`, and `.gitignore`. If a revert would overwrite any of them, git fails the revert and the normal conflict path (`git revert --abort`, `reason: "conflict"`) applies. With no explicit run id and no run with commits, undo returns `{ ok: true, reverted: [], runId: null }` without touching any run.
+- Reason: Keeps undo usable right after setup without risking user changes.
+
+### D-055: Handoff never leaves a task running with nobody working on it
+- Context: docs/03 section 6 re-queues the original task only when follow-up tasks were created. If every handoff path is unresolved or already allowed for the owner, the task would stay `running` while its agent has ended, and the orchestrator would wait forever.
+- Decision: `handoff` always ends the task's run: with follow-ups it becomes `pending` with new dependencies; without them it becomes `pending` once and is `blocked` (note `blocked: handoffs could not be resolved to another owner`) on the second fruitless handoff.
+- Reason: Prevents a stuck run and an endless needs_owner loop.
+
+### D-056: Command output details
+- Context: docs/03 section 6 shows result shapes without an `ok` field, while errors use `ok: false`.
+- Decision: The CLI adds `ok: true` to any result object that lacks `ok`, so callers can always test it. Usage errors (unknown run, task, phase, or missing argument) print `{ok:false,error}` and exit 1; negative results such as an invalid contract exit 0. `new-run` returns `runDir` relative to the project root. `next` returns `running` as the tasks already active before the call (not those it just started) and `remaining` as every task not done or done_with_findings, blocked ones included. `verify` also returns `files` (the attributed changed files). `contract-check` returns `contractFixes` and adds contract tasks that are missing from run.json on every valid check, so a repaired contract can introduce new tasks without resetting existing task state. `review-plan` records the planned kinds in `task.plannedReviews`, deletes stale review files for them, and `review-status` stores `task.reviews` and, on done_with_findings, `task.unresolved` for the report. A final-gate reopen also resets the reopened tasks' review round counters.
+- Reason: Small additions that make the documented flows reliable without changing documented fields.

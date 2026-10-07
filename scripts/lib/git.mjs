@@ -82,3 +82,34 @@ export function restore(root, relPath, baseline) {
     return { restored: false, reason: error.message };
   }
 }
+
+const DIFF_EXCERPT_CHARACTERS = 8000;
+
+function splitTracked(root, files) {
+  const tracked = files.filter((file) => isTracked(root, file));
+  return { tracked, untracked: files.filter((file) => !tracked.includes(file)) };
+}
+
+// `git diff --stat` for tracked files; untracked files are listed as new.
+export function diffStat(root, files) {
+  const { tracked, untracked } = splitTracked(root, files);
+  const parts = [];
+  if (tracked.length > 0 && head(root)) parts.push(git(root, ["diff", "HEAD", "--stat", "--", ...tracked]).stdout.trim());
+  for (const file of untracked) parts.push(`${file} (new file)`);
+  return parts.filter(Boolean).join("\n");
+}
+
+// The first 8,000 characters of the patch, with untracked files shown as additions.
+export function diffExcerpt(root, files, limit = DIFF_EXCERPT_CHARACTERS) {
+  const { tracked, untracked } = splitTracked(root, files);
+  let patch = "";
+  if (tracked.length > 0 && head(root)) patch += git(root, ["diff", "HEAD", "--", ...tracked]).stdout;
+  for (const file of untracked) patch += git(root, ["diff", "--no-index", "--", "/dev/null", file]).stdout;
+  return patch.slice(0, limit);
+}
+
+// Commits of the current branch, newest first.
+export function historyShas(root) {
+  const result = git(root, ["rev-list", "HEAD"]);
+  return result.status === 0 ? result.stdout.split("\n").filter(Boolean) : [];
+}
