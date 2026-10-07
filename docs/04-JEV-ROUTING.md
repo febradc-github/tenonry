@@ -245,3 +245,7 @@ Low confidence is not a failure: the answer is used and the round-up rule applie
 ```
 
 Tests must include fixtures that exercise every mapping branch: haiku, sonnet, opus by difficulty, opus by blast radius, round-up by low confidence, floors, clarify yes and no, the Haiku notice on and off, owner accepted, owner rejected for low confidence, risky opus, and every fallback reason.
+
+## 10. Live check (opt-in)
+
+`tests/jev-live.test.mjs` makes one real call with the dispatch question set of section 4 and a small fixed task state. It runs only when `TENONRY_LIVE=1` is set and the repository's own `.env` contains a non-empty `OPENROUTER_API_KEY`; a normal `node --test` run skips it and needs no network. It asserts `ok: true`, that the answers pass the client's own validation, and that `cost` is a number, and it prints the answers and cost but never the key. Run it with `TENONRY_LIVE=1 node --test tests/jev-live.test.mjs`.
