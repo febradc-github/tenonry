@@ -563,7 +563,7 @@
       "detect": { "files": ["manage.py"], "text": { "**/{pyproject.toml,requirements*.txt,setup.py,Pipfile}": ["django", "Django"] } },
       "owns": ["**/*.py", "manage.py"],
       "priority": 45,
-      "supersedes": [],
+      "supersedes": ["python"],
       "modelFloor": "haiku",
       "idioms": [
         "Keep views thin and put domain logic in model methods, managers, or service functions.",
@@ -582,7 +582,7 @@
       "detect": { "text": { "**/{pyproject.toml,requirements*.txt,setup.py,Pipfile}": ["fastapi"] } },
       "owns": ["**/*.py"],
       "priority": 45,
-      "supersedes": [],
+      "supersedes": ["python"],
       "modelFloor": "haiku",
       "idioms": [
         "Declare request and response models with pydantic and set response_model on routes.",
@@ -601,7 +601,7 @@
       "detect": { "text": { "**/{pyproject.toml,requirements*.txt,setup.py,Pipfile}": ["flask", "Flask"] } },
       "owns": ["**/*.py"],
       "priority": 45,
-      "supersedes": [],
+      "supersedes": ["python"],
       "modelFloor": "haiku",
       "idioms": [
         "Use the application factory pattern and one blueprint per feature.",

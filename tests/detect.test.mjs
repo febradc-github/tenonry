@@ -36,8 +36,46 @@ test("monorepo finds workspace packages and detects per package", () => {
   assert.ok(!specialists(result, ".").includes("nextjs"));
 });
 
-test("django activates the python web stack", () => {
-  assertIncludes(specialists(detect("django")), ["django", "django-orm", "python", "html"]);
+test("django activates the python web stack and supersedes the plain python specialist", () => {
+  const ids = specialists(detect("django"));
+  assertIncludes(ids, ["django", "django-orm", "html"]);
+  assert.ok(!ids.includes("python"), "python would own no file here, so it is not activated (F8)");
+});
+
+test("F8: a FastAPI or Flask project activates the framework without python", () => {
+  for (const [framework, requirement] of [["fastapi", "fastapi\nuvicorn\n"], ["flask", "Flask>=3\n"]]) {
+    const root = tempDir();
+    fs.mkdirSync(path.join(root, "app"));
+    fs.writeFileSync(path.join(root, "requirements.txt"), requirement);
+    fs.writeFileSync(path.join(root, "app", "main.py"), "app = None\n");
+    const ids = specialists(detectAll(root, catalog));
+    assert.ok(ids.includes(framework), framework);
+    assert.ok(!ids.includes("python"), `${framework} supersedes python`);
+  }
+});
+
+test("F8: a plain Python project still activates python", () => {
+  const root = tempDir();
+  fs.writeFileSync(path.join(root, "requirements.txt"), "requests\n");
+  fs.writeFileSync(path.join(root, "main.py"), "print(1)\n");
+  const ids = specialists(detectAll(root, catalog));
+  assert.ok(ids.includes("python"));
+  assert.ok(!ids.includes("django") && !ids.includes("fastapi") && !ids.includes("flask"));
+});
+
+test("F8: the django fixture renders no python agents", async () => {
+  const { fixtureCopy, runInit } = await import("./helpers/project.mjs");
+  const root = fixtureCopy("django");
+  const out = runInit(root).json;
+  assert.ok(!out.active.includes("python"));
+  for (const name of ["tenonry-python.md", "tenonry-review-python.md"]) assert.ok(!fs.existsSync(path.join(root, ".claude", "agents", name)), name);
+  for (const name of ["tenonry-django.md", "tenonry-review-django.md", "tenonry-django-orm.md"]) assert.ok(fs.existsSync(path.join(root, ".claude", "agents", name)), name);
+  const rules = JSON.parse(fs.readFileSync(path.join(root, ".tenonry", "ownership.json"), "utf8")).rules;
+  assert.ok(!rules.some((rule) => rule.owner === "tenonry-python"));
+});
+
+test("F8: only django, fastapi, and flask supersede python", () => {
+  assert.deepEqual(catalog.filter((spec) => spec.supersedes.includes("python")).map((spec) => spec.id), ["django", "fastapi", "flask"]);
 });
 
 test("go-api activates go", () => {

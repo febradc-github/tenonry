@@ -466,7 +466,7 @@ CLI: `node init.mjs [--project <dir>] [--dry-run] [--if-changed]`. Default proje
 - `composer`: any key present in `composer.json` `require` or `require-dev`.
 - `text`: object of `{ "<glob>": ["substring", ...] }`; a scanned file at depth 2 or less matching the glob contains any substring (case-sensitive).
 
-**Supersession.** Within a package, after all signals are evaluated, remove every specialist listed in the `supersedes` array of another active specialist in the same package. Apply once, in catalog order.
+**Supersession.** Within a package, after all signals are evaluated, remove every specialist listed in the `supersedes` array of another active specialist in the same package. Apply once, in catalog order. A specialist supersedes another when it owns everything the other would: for example `nextjs` supersedes `react`, `tailwind` supersedes `css`, and `django`, `fastapi`, and `flask` each supersede `python`, because they own `**/*.py` at a higher priority and a separate Python agent could never receive a task.
 
 **Package manager.** `pnpm-lock.yaml` gives `pnpm`; `yarn.lock` gives `yarn`; `bun.lockb` or `bun.lock` gives `bun`; `package-lock.json` or a bare `package.json` gives `npm`; no `package.json` gives `null`.
 

@@ -40,7 +40,7 @@ Fixtures under `tests/fixtures/` (minimal files only, no installed dependencies)
 | `laravel-vue` | `composer.json` (laravel/framework, laravel/pint), `artisan`, `app/Http/Controllers/HomeController.php`, `app/Models/User.php`, `resources/views/welcome.blade.php`, `package.json` (vue, tailwindcss, vite, scripts.dev), `resources/js/app.js`, `resources/css/app.css`, `tests/Feature/ExampleTest.php` | laravel, eloquent, php, vue, tailwind, html, nodejs (css superseded) |
 | `next-prisma` | `package.json` (next, react, prisma, @prisma/client, typescript, vitest, scripts.dev, scripts.test), `app/page.tsx`, `prisma/schema.prisma`, `tsconfig.json` | nextjs, prisma, typescript, nodejs (react superseded) |
 | `monorepo` | root `package.json` with `workspaces: ["apps/*"]`; `apps/web` (next); `apps/api` (@nestjs/core, prisma) | nextjs in `apps/web`, nestjs and prisma in `apps/api`, globs prefixed with the package root |
-| `django` | `manage.py`, `requirements.txt` (Django, pytest), `shop/models.py`, `shop/views.py`, `templates/base.html` | django, django-orm, python, html |
+| `django` | `manage.py`, `requirements.txt` (Django, pytest), `shop/models.py`, `shop/views.py`, `templates/base.html` | django, django-orm, html (python superseded) |
 | `go-api` | `go.mod`, `cmd/api/main.go`, `internal/orders/service.go` | go |
 | `flutter-app` | `pubspec.yaml` with `flutter:`, `lib/main.dart` | flutter |
 | `three-landing` | `package.json` (three, vite, scripts.dev), `src/scene/hero.ts`, `index.html` | 3d, html, nodejs, and the design reviewer agent rendered |
