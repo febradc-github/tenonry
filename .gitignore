@@ -1,0 +1,6 @@
+.env
+node_modules/
+.tenonry/bin/
+.tenonry/state.json
+.tenonry/logs/
+.tenonry/runs/

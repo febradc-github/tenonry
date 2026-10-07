@@ -1,0 +1,7 @@
+{
+  "name": "tenonry",
+  "version": "0.1.0",
+  "description": "Specialist multi-agent pipeline: Jev-routed models, spec-first tests, single-owner files, design and code reviewers.",
+  "author": { "name": "Dan Christian Febra" },
+  "keywords": ["agents", "orchestration", "jev", "openrouter", "code-quality", "design"]
+}

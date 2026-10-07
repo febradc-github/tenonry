@@ -1,0 +1,1392 @@
+{
+  "version": 1,
+  "notes": "Builder specialists for Tenonry. Copy verbatim to library/catalog.json. Field semantics: docs/03-COMPONENT-SPECS.md sections 3.2, 5.2, and 9.",
+  "specialists": [
+    {
+      "id": "css",
+      "layer": "frontend",
+      "title": "CSS specialist",
+      "detect": { "files": ["**/*.css"] },
+      "owns": ["**/*.css"],
+      "priority": 40,
+      "supersedes": [],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Express every color, spacing, radius, and type value through custom properties defined from the design direction tokens.",
+        "Use modern layout primitives (grid, flexbox, gap, clamp(), container queries) instead of fixed widths and margin hacks.",
+        "Keep selector specificity flat: single class selectors, no IDs, and no !important unless a comment explains why.",
+        "Respect prefers-reduced-motion and prefers-color-scheme wherever the design direction defines behavior for them."
+      ],
+      "slop": [
+        "One border-radius and one soft grey shadow applied to every element regardless of hierarchy.",
+        "Hardcoded hex values and magic pixel numbers instead of tokens.",
+        "Fade-and-slide-up entrance animations on every section."
+      ]
+    },
+    {
+      "id": "html",
+      "layer": "frontend",
+      "title": "HTML and templates specialist",
+      "detect": { "files": ["**/*.html", "**/*.blade.php", "**/*.twig", "**/*.erb", "**/*.ejs", "**/*.hbs", "**/*.njk"] },
+      "owns": ["**/*.html", "**/*.blade.php", "**/*.twig", "**/*.erb", "**/*.ejs", "**/*.hbs", "**/*.njk"],
+      "priority": 65,
+      "supersedes": [],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Use semantic elements (header, nav, main, section, article, button, label) before reaching for div and span.",
+        "Give every form control an associated label and every image meaningful alt text, or alt=\"\" when decorative.",
+        "Keep one h1 per page and a logical heading order.",
+        "Keep logic out of templates: pass prepared data in and use partials or components for repetition."
+      ],
+      "slop": [
+        "Clickable div elements instead of buttons and links.",
+        "Decorative eyebrow labels and numbered markers on content that is not a sequence.",
+        "Copy-pasted markup blocks instead of a partial or component."
+      ]
+    },
+    {
+      "id": "react",
+      "layer": "frontend",
+      "title": "React specialist",
+      "detect": { "npm": ["react"] },
+      "owns": ["**/*.jsx", "**/*.tsx"],
+      "priority": 50,
+      "supersedes": [],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Write function components with hooks and derive values during render instead of syncing them into state with effects.",
+        "Keep components small and named for what users see; lift state only as far as the nearest common owner.",
+        "Use stable, data-derived keys for lists, never array indexes for data that can reorder.",
+        "Handle loading, empty, and error states explicitly for every async view."
+      ],
+      "slop": [
+        "useEffect used to mirror props into state or to compute derived values.",
+        "useMemo and useCallback added everywhere without a measured reason.",
+        "Prop drilling through many layers, or one giant context holding unrelated state."
+      ]
+    },
+    {
+      "id": "nextjs",
+      "layer": "frontend",
+      "title": "Next.js specialist",
+      "detect": { "npm": ["next"] },
+      "owns": ["app/**", "pages/**", "src/app/**", "src/pages/**", "components/**", "src/components/**", "lib/**", "src/lib/**", "**/*.jsx", "**/*.tsx", "next.config.*", "middleware.{ts,js}", "src/middleware.{ts,js}"],
+      "priority": 55,
+      "supersedes": ["react"],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Default to Server Components and add \"use client\" only to the smallest interactive leaf.",
+        "Fetch data on the server close to where it is used and choose caching and revalidation deliberately.",
+        "Use next/image, next/font, and route-level loading and error files instead of hand-rolled equivalents.",
+        "Keep secrets in server-only modules and never import them into client components."
+      ],
+      "slop": [
+        "\"use client\" at the top of every file.",
+        "Client-side fetching in useEffect for data the server could fetch.",
+        "API routes that only proxy data the page could read directly on the server."
+      ]
+    },
+    {
+      "id": "vue",
+      "layer": "frontend",
+      "title": "Vue specialist",
+      "detect": { "npm": ["vue"] },
+      "owns": ["**/*.vue", "src/composables/**", "src/stores/**", "src/router/**", "resources/js/**/*.{js,ts}"],
+      "priority": 50,
+      "supersedes": [],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Use the Composition API with script setup and typed props and emits.",
+        "Use computed for derived state and watch only for side effects.",
+        "Extract reusable stateful logic into composables named useX.",
+        "Keep components presentational where possible and move shared state into Pinia stores."
+      ],
+      "slop": [
+        "Watchers that copy one reactive value into another instead of a computed.",
+        "Mutating props directly.",
+        "Options API and Composition API mixed in one codebase without reason."
+      ]
+    },
+    {
+      "id": "angular",
+      "layer": "frontend",
+      "title": "Angular specialist",
+      "detect": { "npm": ["@angular/core"] },
+      "owns": ["src/app/**", "**/*.component.ts", "**/*.component.html", "**/*.component.scss", "**/*.component.css", "**/*.service.ts", "**/*.module.ts", "angular.json"],
+      "priority": 60,
+      "supersedes": [],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Use standalone components, signals for local state, and inject() for dependencies.",
+        "Prefer OnPush change detection and the async pipe or signals over manual subscriptions.",
+        "Use the built-in template control flow (@if, @for with track).",
+        "Keep services focused and typed, with HTTP access in services rather than components."
+      ],
+      "slop": [
+        "Manual subscribe calls in components without teardown.",
+        "Logic-heavy templates and functions called inside template bindings.",
+        "Shared god-services holding unrelated state."
+      ]
+    },
+    {
+      "id": "svelte",
+      "layer": "frontend",
+      "title": "Svelte and SvelteKit specialist",
+      "detect": { "npm": ["svelte", "@sveltejs/kit"] },
+      "owns": ["**/*.svelte", "src/routes/**", "src/lib/**", "svelte.config.*"],
+      "priority": 55,
+      "supersedes": [],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Use runes ($state, $derived, $effect, $props) and keep $effect for true side effects.",
+        "Load data in server load functions and use form actions for mutations.",
+        "Keep components small and pass data down with props; use stores or context only for shared state.",
+        "Build forms with progressive enhancement."
+      ],
+      "slop": [
+        "$effect used to compute derived values.",
+        "Client-side fetch in onMount for data a load function should provide.",
+        "Global stores for state used by a single component."
+      ]
+    },
+    {
+      "id": "solid",
+      "layer": "frontend",
+      "title": "SolidJS specialist",
+      "detect": { "npm": ["solid-js"] },
+      "owns": ["**/*.jsx", "**/*.tsx"],
+      "priority": 52,
+      "supersedes": ["react"],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Use signals, memos, and resources, and never destructure props, which breaks reactivity.",
+        "Use Show, For, and Switch control-flow components instead of map calls and ternaries in JSX.",
+        "Keep effects for side effects only and derive values with createMemo."
+      ],
+      "slop": [
+        "Destructured props that silently stop updating.",
+        "React patterns copied over, such as dependency arrays and useState-style setters everywhere."
+      ]
+    },
+    {
+      "id": "lit",
+      "layer": "frontend",
+      "title": "Lit web components specialist",
+      "detect": { "npm": ["lit"] },
+      "owns": ["**/components/**/*.{ts,js}", "**/*-element.{ts,js}", "**/elements/**/*.{ts,js}"],
+      "priority": 55,
+      "supersedes": [],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Declare typed reactive properties and keep internal state as private reactive state.",
+        "Scope styles with static styles and expose theming through CSS custom properties and ::part.",
+        "Dispatch typed custom events outward and accept complex data through properties, not attributes."
+      ],
+      "slop": [
+        "Manual DOM manipulation inside render instead of declarative templates.",
+        "Global styles forced into shadow roots through workarounds."
+      ]
+    },
+    {
+      "id": "nuxt",
+      "layer": "frontend",
+      "title": "Nuxt specialist",
+      "detect": { "npm": ["nuxt"] },
+      "owns": ["**/*.vue", "pages/**", "components/**", "composables/**", "layouts/**", "middleware/**", "plugins/**", "server/**", "stores/**", "app.config.*", "nuxt.config.*"],
+      "priority": 55,
+      "supersedes": ["vue"],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Fetch data with useFetch or useAsyncData so it is server-rendered and deduplicated.",
+        "Rely on auto-imports and file-based routing, and keep server-only code in server/.",
+        "Use useState or Pinia for shared state that must survive hydration.",
+        "Use runtime config for environment values, never hardcoded URLs."
+      ],
+      "slop": [
+        "Plain fetch in onMounted for data that should be server-rendered.",
+        "Manual imports and router registration that fight Nuxt conventions."
+      ]
+    },
+    {
+      "id": "remix",
+      "layer": "frontend",
+      "title": "Remix and React Router specialist",
+      "detect": { "npm": ["@remix-run/react", "@remix-run/node", "@react-router/dev"] },
+      "owns": ["app/**", "**/*.jsx", "**/*.tsx"],
+      "priority": 55,
+      "supersedes": ["react"],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Load data in loaders and mutate in actions, reading results with the framework's data hooks.",
+        "Use Form and fetchers for mutations so pages keep working with progressive enhancement.",
+        "Return proper HTTP responses, status codes, and redirects from loaders and actions.",
+        "Handle failures with route error boundaries."
+      ],
+      "slop": [
+        "Client-side useEffect fetching that duplicates a loader.",
+        "Manual form state and fetch calls where Form or a fetcher fits."
+      ]
+    },
+    {
+      "id": "astro",
+      "layer": "frontend",
+      "title": "Astro specialist",
+      "detect": { "npm": ["astro"] },
+      "owns": ["**/*.astro", "src/pages/**", "src/layouts/**", "src/content/**", "astro.config.*"],
+      "priority": 55,
+      "supersedes": [],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Ship zero JavaScript by default and hydrate only interactive islands with the narrowest client directive.",
+        "Use content collections with schemas for structured content.",
+        "Use the built-in image component and static generation unless a page needs server rendering."
+      ],
+      "slop": [
+        "client:load on every component.",
+        "Content kept as hardcoded arrays inside pages instead of collections."
+      ]
+    },
+    {
+      "id": "livewire",
+      "layer": "frontend",
+      "title": "Livewire specialist",
+      "detect": { "composer": ["livewire/livewire"] },
+      "owns": ["app/Livewire/**", "app/Http/Livewire/**", "resources/views/livewire/**"],
+      "priority": 70,
+      "supersedes": [],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Keep public properties minimal and typed, and authorize every action because users can tamper with public properties.",
+        "Choose wire:model modifiers (live, blur) deliberately and validate with rules.",
+        "Use computed properties for derived data and lazy loading for heavy components."
+      ],
+      "slop": [
+        "wire:model.live on every input, causing a request per keystroke.",
+        "Authorization skipped in actions because the button is hidden in the view."
+      ]
+    },
+    {
+      "id": "alpine",
+      "layer": "frontend",
+      "title": "Alpine.js specialist",
+      "detect": { "npm": ["alpinejs"] },
+      "owns": ["**/alpine/**", "resources/js/**/*alpine*.{js,ts}"],
+      "priority": 60,
+      "supersedes": [],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Keep x-data small and move reusable behavior into Alpine.data components.",
+        "Use Alpine.store for shared state and x-cloak to avoid flashes of unstyled content.",
+        "Keep accessibility attributes such as aria-expanded and focus management in sync with state."
+      ],
+      "slop": [
+        "Large inline x-data objects duplicated across templates.",
+        "Toggles that change visibility without updating aria state."
+      ]
+    },
+    {
+      "id": "htmx",
+      "layer": "frontend",
+      "title": "htmx specialist",
+      "detect": { "npm": ["htmx.org"], "files": ["**/htmx*.js"] },
+      "owns": ["**/partials/**", "**/fragments/**", "**/htmx/**"],
+      "priority": 60,
+      "supersedes": [],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Return HTML fragments from the server and target the smallest element that changes.",
+        "Use hx-boost and progressive enhancement so links and forms work without JavaScript.",
+        "Use hx-indicator and proper HTTP status codes for loading and error states."
+      ],
+      "slop": [
+        "JSON endpoints plus client-side templating that htmx makes unnecessary.",
+        "Swapping whole pages when one fragment changed."
+      ]
+    },
+    {
+      "id": "jquery",
+      "layer": "frontend",
+      "title": "jQuery and legacy JavaScript specialist",
+      "detect": { "npm": ["jquery"], "files": ["**/jquery*.js"] },
+      "owns": ["public/js/**", "assets/js/**", "static/js/**", "resources/js/**/*.js"],
+      "priority": 45,
+      "supersedes": [],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Use delegated event handlers on stable containers for dynamic content.",
+        "Cache selections and avoid repeated DOM queries inside loops.",
+        "Use native APIs (fetch, classList, querySelector) for new code when the file already does."
+      ],
+      "slop": [
+        "Rewriting a legacy file in a new framework when the task asked for a fix.",
+        "New global variables and inline onclick handlers added to legacy pages."
+      ]
+    },
+    {
+      "id": "tailwind",
+      "layer": "frontend",
+      "title": "Tailwind CSS specialist",
+      "detect": { "npm": ["tailwindcss", "@tailwindcss/vite", "@tailwindcss/postcss"] },
+      "owns": ["tailwind.config.*", "**/*.css"],
+      "priority": 45,
+      "supersedes": ["css"],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Encode the design direction as theme tokens (the @theme block in v4 or the config theme) and use only those tokens in classes.",
+        "Extract repeated class groups into components rather than piling up @apply rules.",
+        "Use responsive, state, and dark variants consistently instead of custom media queries."
+      ],
+      "slop": [
+        "Arbitrary values such as text-[13px] and bg-[#123456] instead of tokens.",
+        "The default palette and gradient washes used as decoration.",
+        "Identical rounded-xl shadow-md cards for every piece of content."
+      ]
+    },
+    {
+      "id": "sass",
+      "layer": "frontend",
+      "title": "Sass specialist",
+      "detect": { "npm": ["sass", "node-sass"], "files": ["**/*.scss", "**/*.sass"] },
+      "owns": ["**/*.scss", "**/*.sass"],
+      "priority": 50,
+      "supersedes": [],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Use the module system (@use and @forward), never @import.",
+        "Keep tokens in variables or maps and expose them as CSS custom properties.",
+        "Limit nesting to three levels and keep specificity flat."
+      ],
+      "slop": [
+        "Deep nesting that mirrors the DOM structure.",
+        "Mixins and functions written for a single use."
+      ]
+    },
+    {
+      "id": "css-in-js",
+      "layer": "frontend",
+      "title": "CSS-in-JS specialist",
+      "detect": { "npm": ["styled-components", "@emotion/react", "@emotion/styled", "@vanilla-extract/css", "@stitches/react"] },
+      "owns": ["**/*.styles.{ts,tsx,js,jsx}", "**/styles.{ts,tsx,js,jsx}", "**/styled.{ts,tsx,js,jsx}", "**/*.css.ts", "**/theme.{ts,js}"],
+      "priority": 60,
+      "supersedes": [],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Define a typed theme from the design direction tokens and read every value from it.",
+        "Declare styled components outside render functions, next to the component they style.",
+        "Use variants or props mapped to tokens instead of inline conditional style strings."
+      ],
+      "slop": [
+        "Styled components created inside render and recreated on every render.",
+        "Hardcoded colors and spacing inside style literals."
+      ]
+    },
+    {
+      "id": "typescript",
+      "layer": "frontend",
+      "title": "TypeScript types specialist",
+      "detect": { "npm": ["typescript"] },
+      "owns": ["**/*.d.ts", "**/types/**/*.ts", "types/**", "tsconfig*.json"],
+      "priority": 70,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Model domain data with precise types and discriminated unions, deriving related types instead of duplicating them.",
+        "Keep strict mode on and prefer unknown plus narrowing over any.",
+        "Export shared types from one place so frontend and backend agree on interfaces."
+      ],
+      "slop": [
+        "any and type assertions used to silence errors.",
+        "Interfaces duplicated across files with slightly different fields."
+      ]
+    },
+    {
+      "id": "storybook",
+      "layer": "frontend",
+      "title": "Storybook specialist",
+      "detect": { "npm": ["storybook", "@storybook/react", "@storybook/vue3", "@storybook/svelte"], "files": [".storybook/**"] },
+      "owns": ["**/*.stories.{js,jsx,ts,tsx,mdx,svelte}", ".storybook/**"],
+      "priority": 80,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Write stories in Component Story Format with args covering real states: default, loading, empty, error, and long content.",
+        "Apply the design direction tokens through decorators so stories render like production.",
+        "Add play-function interaction tests for interactive components when the project already uses them."
+      ],
+      "slop": [
+        "A single default story per component that hides edge states.",
+        "Mock data that does not match the real data shapes."
+      ]
+    },
+    {
+      "id": "react-native",
+      "layer": "frontend",
+      "title": "React Native specialist",
+      "detect": { "npm": ["react-native", "expo"] },
+      "owns": ["**/*.jsx", "**/*.tsx", "app/**", "src/**/*.{js,ts}", "app.json", "app.config.*", "metro.config.*"],
+      "priority": 55,
+      "supersedes": ["react"],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Use FlatList or FlashList for long lists, never a ScrollView with map.",
+        "Use StyleSheet.create with tokens, respect safe areas, and handle platform differences explicitly.",
+        "Give touch targets at least 44 by 44 points and add accessibilityLabel to icon buttons."
+      ],
+      "slop": [
+        "Web-only CSS assumptions and fixed pixel layouts that break on other screen sizes.",
+        "Inline style objects recreated on every render throughout the app."
+      ]
+    },
+    {
+      "id": "flutter",
+      "layer": "frontend",
+      "title": "Flutter specialist",
+      "detect": { "text": { "**/pubspec.yaml": ["flutter:"] } },
+      "owns": ["lib/**/*.dart"],
+      "priority": 55,
+      "supersedes": [],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Compose small widgets and use const constructors wherever possible.",
+        "Stay consistent with the project's state management choice and keep business logic out of widgets.",
+        "Use Theme and ThemeExtension for tokens and never hardcode colors in widgets."
+      ],
+      "slop": [
+        "Giant build methods with deeply nested widget trees.",
+        "setState used for app-wide state."
+      ]
+    },
+    {
+      "id": "electron",
+      "layer": "frontend",
+      "title": "Electron specialist",
+      "detect": { "npm": ["electron"] },
+      "owns": ["electron/**", "src/main/**", "src/preload/**", "main.{js,ts}", "preload.{js,ts}", "electron-builder.*", "forge.config.*"],
+      "priority": 60,
+      "supersedes": [],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Keep contextIsolation on and nodeIntegration off, exposing a minimal typed API through contextBridge in preload.",
+        "Validate every IPC message in the main process.",
+        "Keep the main process thin and move heavy work to utility processes or workers."
+      ],
+      "slop": [
+        "nodeIntegration enabled to make a renderer feature work.",
+        "Generic IPC channels that accept any payload."
+      ]
+    },
+    {
+      "id": "3d",
+      "layer": "3d",
+      "title": "3D and WebGL specialist",
+      "detect": { "npm": ["three", "@react-three/fiber", "@react-three/drei", "@babylonjs/core", "babylonjs", "ogl", "@splinetool/runtime"] },
+      "owns": ["**/*.{glsl,frag,vert,wgsl}", "**/three/**", "**/scene/**", "**/scenes/**", "**/3d/**", "**/webgl/**", "**/shaders/**"],
+      "priority": 70,
+      "supersedes": [],
+      "modelFloor": "sonnet",
+      "idioms": [
+        "Use 3D only where the design direction calls for it, with a static fallback and respect for prefers-reduced-motion.",
+        "Lazy-load the scene and its assets after first paint so the main thread stays free during load.",
+        "Budget draw calls, texture sizes, and polygon counts; reuse geometries and materials and dispose resources on unmount.",
+        "Cap the device pixel ratio and pause rendering when the canvas is off-screen or the tab is hidden."
+      ],
+      "slop": [
+        "A spinning hero object with no relation to the subject matter.",
+        "Uncompressed multi-megabyte models and textures loaded with the page.",
+        "Render loops running at full frame rate when nothing changes."
+      ]
+    },
+    {
+      "id": "laravel",
+      "layer": "backend",
+      "title": "Laravel specialist",
+      "detect": { "composer": ["laravel/framework"] },
+      "owns": ["app/**", "routes/**", "config/**", "bootstrap/**", "lang/**", "resources/lang/**"],
+      "priority": 50,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Validate input with Form Requests and authorize with policies or gates.",
+        "Keep controllers thin, put business logic in actions or services, and use dependency injection.",
+        "Use API Resources for response shapes, queued jobs for slow work, and config() rather than env() outside config files.",
+        "Use route model binding and named routes."
+      ],
+      "slop": [
+        "Fat controllers with validation, queries, and formatting inline.",
+        "Repository interfaces wrapping Eloquent with a single implementation and no reason.",
+        "try/catch blocks that swallow exceptions the framework's handler would render correctly."
+      ]
+    },
+    {
+      "id": "nestjs",
+      "layer": "backend",
+      "title": "NestJS specialist",
+      "detect": { "npm": ["@nestjs/core"] },
+      "owns": ["src/**/*.ts"],
+      "priority": 50,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Organize code into feature modules with thin controllers and logic in providers.",
+        "Validate DTOs with class-validator and the global ValidationPipe.",
+        "Use guards for auth, interceptors for cross-cutting concerns, and exception filters for error shapes.",
+        "Inject configuration through ConfigService instead of reading process.env in services."
+      ],
+      "slop": [
+        "Controllers containing business logic and database queries.",
+        "Generic base services and abstract repositories built for one entity."
+      ]
+    },
+    {
+      "id": "python",
+      "layer": "backend",
+      "title": "Python specialist",
+      "detect": { "files": ["pyproject.toml", "requirements.txt", "setup.py", "**/*.py"] },
+      "owns": ["**/*.py"],
+      "priority": 30,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Follow PEP 8 naming and add type hints to public functions.",
+        "Prefer small pure functions, dataclasses or pydantic models for structured data, and pathlib for paths.",
+        "Raise specific exceptions and handle them only where something useful can be done."
+      ],
+      "slop": [
+        "Bare except clauses or broad except Exception blocks that hide failures.",
+        "Classes with one method that should be plain functions."
+      ]
+    },
+    {
+      "id": "django",
+      "layer": "backend",
+      "title": "Django specialist",
+      "detect": { "files": ["manage.py"], "text": { "**/{pyproject.toml,requirements*.txt,setup.py,Pipfile}": ["django", "Django"] } },
+      "owns": ["**/*.py", "manage.py"],
+      "priority": 45,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Keep views thin and put domain logic in model methods, managers, or service functions.",
+        "Validate with forms or DRF serializers and avoid N+1 queries with select_related and prefetch_related.",
+        "Read settings through the settings module and never hardcode secrets."
+      ],
+      "slop": [
+        "Raw SQL where the ORM expresses the query clearly.",
+        "Business logic duplicated across views and serializers."
+      ]
+    },
+    {
+      "id": "fastapi",
+      "layer": "backend",
+      "title": "FastAPI specialist",
+      "detect": { "text": { "**/{pyproject.toml,requirements*.txt,setup.py,Pipfile}": ["fastapi"] } },
+      "owns": ["**/*.py"],
+      "priority": 45,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Declare request and response models with pydantic and set response_model on routes.",
+        "Use Depends for auth, database sessions, and shared parameters.",
+        "Use async endpoints only with async libraries, and run blocking work in threads or background tasks."
+      ],
+      "slop": [
+        "Blocking database or HTTP calls inside async def endpoints.",
+        "Plain dicts returned instead of typed response models."
+      ]
+    },
+    {
+      "id": "flask",
+      "layer": "backend",
+      "title": "Flask specialist",
+      "detect": { "text": { "**/{pyproject.toml,requirements*.txt,setup.py,Pipfile}": ["flask", "Flask"] } },
+      "owns": ["**/*.py"],
+      "priority": 45,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Use the application factory pattern and one blueprint per feature.",
+        "Validate input explicitly and return consistent JSON errors.",
+        "Load configuration from the environment into config classes."
+      ],
+      "slop": [
+        "A single app.py containing every route.",
+        "Global mutable state shared across requests."
+      ]
+    },
+    {
+      "id": "nodejs",
+      "layer": "backend",
+      "title": "Node.js specialist",
+      "detect": { "files": ["package.json"] },
+      "owns": ["**/*.{js,mjs,cjs,ts}", "scripts/**", "bin/**"],
+      "priority": 30,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Use ES modules and async/await, and never block the event loop with synchronous I/O in request paths.",
+        "Validate external input at the boundary and handle every promise rejection.",
+        "Read configuration once at startup from the environment and pass it down."
+      ],
+      "slop": [
+        "Unhandled rejections and floating promises.",
+        "Callback and promise styles mixed in the same module."
+      ]
+    },
+    {
+      "id": "express",
+      "layer": "backend",
+      "title": "Express specialist",
+      "detect": { "npm": ["express"] },
+      "owns": ["src/**/*.{js,ts}", "routes/**", "middleware/**", "controllers/**", "server.{js,ts}", "app.{js,ts}"],
+      "priority": 45,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Structure routers per resource with thin handlers that delegate to services.",
+        "Validate requests with a schema library such as zod or joi in middleware.",
+        "Use one centralized error-handling middleware and forward async errors to it.",
+        "Set security headers and limit request body size."
+      ],
+      "slop": [
+        "try/catch in every handler that responds with a generic 500.",
+        "Business logic inside route callbacks."
+      ]
+    },
+    {
+      "id": "fastify",
+      "layer": "backend",
+      "title": "Fastify specialist",
+      "detect": { "npm": ["fastify"] },
+      "owns": ["src/**/*.{js,ts}", "routes/**", "plugins/**", "server.{js,ts}", "app.{js,ts}"],
+      "priority": 45,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Declare JSON schemas for body, params, and responses so validation and serialization are automatic.",
+        "Encapsulate features as plugins and share services through decorators.",
+        "Use hooks such as onRequest and preHandler for auth and cross-cutting logic."
+      ],
+      "slop": [
+        "Routes without schemas.",
+        "Express-style middleware patterns forced into Fastify."
+      ]
+    },
+    {
+      "id": "hono",
+      "layer": "backend",
+      "title": "Hono specialist",
+      "detect": { "npm": ["hono"] },
+      "owns": ["src/**/*.{js,ts}", "server.{js,ts}", "app.{js,ts}"],
+      "priority": 45,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Group routes with app.route per feature and type the environment bindings.",
+        "Validate input with validator middleware such as zod-validator and return typed responses.",
+        "Keep code runtime-agnostic unless the project targets a single runtime."
+      ],
+      "slop": [
+        "Node-only APIs used in code meant for edge runtimes.",
+        "Untyped context variables passed around as any."
+      ]
+    },
+    {
+      "id": "deno",
+      "layer": "backend",
+      "title": "Deno specialist",
+      "detect": { "files": ["deno.json", "deno.jsonc"] },
+      "owns": ["**/*.{ts,tsx,js}", "deno.json", "deno.jsonc"],
+      "priority": 45,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Use explicit permissions and the standard library, managing imports through the import map in deno.json.",
+        "Use Deno.serve and web-standard Request and Response APIs.",
+        "Follow deno fmt, deno lint, and deno check conventions."
+      ],
+      "slop": [
+        "Node compatibility shims where a Deno or web-standard API exists.",
+        "Remote imports from unversioned URLs."
+      ]
+    },
+    {
+      "id": "symfony",
+      "layer": "backend",
+      "title": "Symfony specialist",
+      "detect": { "composer": ["symfony/framework-bundle"] },
+      "owns": ["src/**/*.php", "config/**"],
+      "priority": 50,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Use autowired services, attribute routing, and constructor injection.",
+        "Validate DTOs with the Validator component and authorize with Voters.",
+        "Keep controllers thin and use Messenger for asynchronous work."
+      ],
+      "slop": [
+        "Fetching services from the container directly.",
+        "Controllers holding business logic and Doctrine queries."
+      ]
+    },
+    {
+      "id": "php",
+      "layer": "backend",
+      "title": "PHP specialist",
+      "detect": { "files": ["composer.json", "**/*.php"] },
+      "owns": ["**/*.php"],
+      "priority": 30,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Use declare(strict_types=1), typed properties, and return types.",
+        "Follow PSR-12 style and PSR-4 autoloading, using constructor property promotion and readonly where they fit.",
+        "Throw specific exceptions and never suppress errors with @."
+      ],
+      "slop": [
+        "Arrays used as untyped data structures where a small class or enum fits.",
+        "Static helper classes accumulating unrelated functions."
+      ]
+    },
+    {
+      "id": "go",
+      "layer": "backend",
+      "title": "Go specialist",
+      "detect": { "files": ["go.mod"] },
+      "owns": ["**/*.go"],
+      "priority": 50,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Return errors, wrap them with context using fmt.Errorf and %w, and handle each error once.",
+        "Accept interfaces and return structs, defining interfaces at the consumer.",
+        "Pass context.Context first for request-scoped work and respect cancellation.",
+        "Keep packages small and named for what they provide."
+      ],
+      "slop": [
+        "Interfaces declared next to their only implementation.",
+        "panic used for ordinary errors.",
+        "Getters and setters on every struct field."
+      ]
+    },
+    {
+      "id": "rust-axum",
+      "layer": "backend",
+      "title": "Rust (Axum) specialist",
+      "detect": { "files": ["Cargo.toml"] },
+      "owns": ["**/*.rs"],
+      "priority": 50,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Use extractors for input, typed State for shared dependencies, and IntoResponse for error types.",
+        "Model errors as enums (for example with thiserror) and propagate them with ?, avoiding unwrap and expect outside tests.",
+        "Borrow instead of cloning where lifetimes stay simple, and keep async code free of blocking calls."
+      ],
+      "slop": [
+        "clone() added just to satisfy the borrow checker.",
+        "unwrap() in request paths."
+      ]
+    },
+    {
+      "id": "spring-boot",
+      "layer": "backend",
+      "title": "Spring Boot specialist",
+      "detect": { "text": { "**/{pom.xml,build.gradle,build.gradle.kts}": ["spring-boot"] } },
+      "owns": ["src/main/java/**", "src/main/resources/**"],
+      "priority": 50,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Use constructor injection, records for DTOs, and Bean Validation on request bodies.",
+        "Keep controllers thin and put transactions on service methods.",
+        "Handle errors centrally with @ControllerAdvice and problem details."
+      ],
+      "slop": [
+        "Field injection with @Autowired.",
+        "JPA entities exposed directly as API responses."
+      ]
+    },
+    {
+      "id": "kotlin-ktor",
+      "layer": "backend",
+      "title": "Kotlin (Ktor) specialist",
+      "detect": { "text": { "**/{build.gradle,build.gradle.kts,pom.xml}": ["io.ktor"] } },
+      "owns": ["src/main/kotlin/**", "src/main/resources/**"],
+      "priority": 50,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Organize routes as extension functions per feature and install plugins for serialization, auth, and status pages.",
+        "Use data classes for DTOs with kotlinx.serialization.",
+        "Write suspend functions correctly and never block inside handlers."
+      ],
+      "slop": [
+        "runBlocking inside request handlers.",
+        "Nullable values forced with !! instead of handled."
+      ]
+    },
+    {
+      "id": "aspnet-core",
+      "layer": "backend",
+      "title": "ASP.NET Core specialist",
+      "detect": { "text": { "**/*.csproj": ["Microsoft.NET.Sdk.Web", "Microsoft.AspNetCore"] } },
+      "owns": ["**/*.cs", "**/appsettings*.json"],
+      "priority": 50,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Use dependency injection with appropriate lifetimes and the options pattern for configuration.",
+        "Validate input, return ProblemDetails for errors, and stay async all the way through.",
+        "Keep endpoints thin, whether minimal APIs or controllers, with logic in services."
+      ],
+      "slop": [
+        "Async methods blocked with .Result or .Wait().",
+        "Service locator calls instead of constructor injection."
+      ]
+    },
+    {
+      "id": "rails",
+      "layer": "backend",
+      "title": "Ruby on Rails specialist",
+      "detect": { "text": { "**/Gemfile": ["rails"] } },
+      "owns": ["app/**/*.rb", "config/**", "lib/**/*.rb", "db/**"],
+      "priority": 50,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Follow Rails conventions: RESTful resources, strong parameters, and validations in models.",
+        "Avoid N+1 queries with includes and use scopes for reusable queries.",
+        "Move complex domain logic into plain Ruby objects and slow work into background jobs."
+      ],
+      "slop": [
+        "Callbacks that hide side effects such as emails and API calls.",
+        "Service objects wrapping one-line operations."
+      ]
+    },
+    {
+      "id": "phoenix",
+      "layer": "backend",
+      "title": "Elixir Phoenix specialist",
+      "detect": { "text": { "**/mix.exs": [":phoenix"] } },
+      "owns": ["lib/**/*.ex", "lib/**/*.heex", "config/**", "priv/repo/**"],
+      "priority": 66,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Keep business logic in contexts, with controllers and LiveViews calling context functions.",
+        "Validate with Ecto changesets and express control flow with pattern matching.",
+        "Use function components and keep LiveView socket assigns minimal."
+      ],
+      "slop": [
+        "Repo calls made directly from controllers or LiveViews.",
+        "Defensive nil checks where pattern matching expresses the cases."
+      ]
+    },
+    {
+      "id": "graphql",
+      "layer": "backend",
+      "title": "GraphQL specialist",
+      "detect": {
+        "npm": ["graphql", "@apollo/server", "graphql-yoga", "type-graphql"],
+        "composer": ["nuwave/lighthouse", "webonyx/graphql-php"],
+        "text": { "**/{pyproject.toml,requirements*.txt,Pipfile}": ["strawberry-graphql", "graphene"] }
+      },
+      "owns": ["**/*.{graphql,gql}", "**/resolvers/**", "**/graphql/**"],
+      "priority": 65,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Design the schema around client use cases and choose nullability deliberately.",
+        "Batch data loading with DataLoader to avoid N+1 resolvers.",
+        "Enforce authorization in resolvers or a shared layer, and limit query depth and cost."
+      ],
+      "slop": [
+        "Schemas that mirror database tables one to one.",
+        "Resolvers that query the database once per item."
+      ]
+    },
+    {
+      "id": "grpc",
+      "layer": "backend",
+      "title": "gRPC and Protobuf specialist",
+      "detect": { "files": ["**/*.proto"] },
+      "owns": ["**/*.proto", "**/grpc/**"],
+      "priority": 65,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Design messages for evolution: never reuse field numbers and reserve removed ones.",
+        "Set deadlines, return proper status codes, and keep services small and cohesive.",
+        "Keep generated code out of hand-written directories."
+      ],
+      "slop": [
+        "Generated stubs edited by hand.",
+        "Field numbers or types of existing fields changed."
+      ]
+    },
+    {
+      "id": "serverless",
+      "layer": "backend",
+      "title": "Serverless functions specialist",
+      "detect": {
+        "files": ["serverless.yml", "serverless.yaml", "serverless.ts", "template.yaml", "template.yml", "host.json"],
+        "npm": ["aws-lambda", "@azure/functions", "serverless"]
+      },
+      "owns": ["serverless.{yml,yaml,ts}", "template.{yml,yaml}", "host.json", "**/function.json", "functions/**", "lambda/**", "handlers/**"],
+      "priority": 60,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Keep handlers thin and initialize clients outside the handler so invocations reuse them.",
+        "Make handlers idempotent and set timeouts and memory deliberately.",
+        "Grant least-privilege permissions per function."
+      ],
+      "slop": [
+        "Wildcard IAM permissions.",
+        "Heavy initialization inside the handler on every invocation."
+      ]
+    },
+    {
+      "id": "postgresql",
+      "layer": "data",
+      "title": "PostgreSQL specialist",
+      "detect": {
+        "npm": ["pg", "postgres", "@neondatabase/serverless"],
+        "text": { "**/{pyproject.toml,requirements*.txt,Pipfile}": ["psycopg", "asyncpg"], "**/go.mod": ["jackc/pgx", "lib/pq"] }
+      },
+      "owns": ["**/*.sql"],
+      "priority": 55,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Write reversible migrations that are safe on large tables: add columns nullable, backfill, then constrain, and create indexes concurrently.",
+        "Enforce invariants with NOT NULL, foreign keys, CHECK, and UNIQUE constraints.",
+        "Index for the real query patterns and confirm with EXPLAIN.",
+        "Parameterize every query."
+      ],
+      "slop": [
+        "SELECT * in application queries.",
+        "An index added on every column."
+      ]
+    },
+    {
+      "id": "prisma",
+      "layer": "data",
+      "title": "Prisma specialist",
+      "detect": { "npm": ["prisma", "@prisma/client"] },
+      "owns": ["prisma/**"],
+      "priority": 70,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Model relations explicitly with referential actions and add @@index for real query patterns.",
+        "Create migrations with prisma migrate and never edit applied migrations.",
+        "Select only the fields needed and wrap multi-step writes in transactions."
+      ],
+      "slop": [
+        "Hand-edited applied migration files.",
+        "Whole relation trees fetched with include where select would do."
+      ]
+    },
+    {
+      "id": "mysql",
+      "layer": "data",
+      "title": "MySQL and MariaDB specialist",
+      "detect": { "npm": ["mysql2", "mysql"], "text": { "**/{pyproject.toml,requirements*.txt,Pipfile}": ["pymysql", "mysqlclient"] } },
+      "owns": ["**/*.sql"],
+      "priority": 55,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Use InnoDB, utf8mb4, and explicit foreign keys and indexes.",
+        "Write migrations that stay online-safe on large tables.",
+        "Parameterize every query."
+      ],
+      "slop": [
+        "Implicit type conversions in WHERE clauses that defeat indexes.",
+        "Booleans and enumerations stored as free-form strings."
+      ]
+    },
+    {
+      "id": "sqlite",
+      "layer": "data",
+      "title": "SQLite specialist",
+      "detect": { "npm": ["better-sqlite3", "sqlite3", "@libsql/client"], "files": ["**/*.sqlite", "**/*.sqlite3"] },
+      "owns": ["**/*.sql"],
+      "priority": 55,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Enable foreign keys and WAL mode where the project controls connections.",
+        "Keep transactions short and batch writes inside a single transaction.",
+        "Account for type affinity by enforcing types with CHECK constraints or STRICT tables."
+      ],
+      "slop": [
+        "A new connection opened for every query.",
+        "Assuming concurrent writers scale like a server database."
+      ]
+    },
+    {
+      "id": "sqlserver",
+      "layer": "data",
+      "title": "SQL Server specialist",
+      "detect": {
+        "npm": ["mssql", "tedious"],
+        "text": { "**/*.csproj": ["Microsoft.Data.SqlClient", "Microsoft.EntityFrameworkCore.SqlServer"], "**/{pyproject.toml,requirements*.txt,Pipfile}": ["pyodbc", "pymssql"] }
+      },
+      "owns": ["**/*.sql"],
+      "priority": 55,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Use parameterized queries and deliberate types such as datetime2 and sized nvarchar columns.",
+        "Index for the real query patterns and check execution plans.",
+        "Use explicit transactions with suitable isolation levels."
+      ],
+      "slop": [
+        "nvarchar(max) for every string column.",
+        "Cursors where a set-based query works."
+      ]
+    },
+    {
+      "id": "mongodb",
+      "layer": "data",
+      "title": "MongoDB specialist",
+      "detect": {
+        "npm": ["mongodb", "mongoose"],
+        "composer": ["mongodb/mongodb"],
+        "text": { "**/{pyproject.toml,requirements*.txt,Pipfile}": ["pymongo", "motor"], "**/go.mod": ["go.mongodb.org/mongo-driver"] }
+      },
+      "owns": ["**/models/**/*.{js,ts}", "**/schemas/**/*.{js,ts}", "**/*.model.{js,ts}", "**/*.schema.{js,ts}"],
+      "priority": 60,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Design documents around access patterns: embed what is read together and reference what grows without bound.",
+        "Define an index for every query pattern and validate documents with Mongoose or JSON Schema.",
+        "Use projections and lean queries for reads."
+      ],
+      "slop": [
+        "Relational-style normalization requiring many lookups.",
+        "Arrays that grow without bound inside documents."
+      ]
+    },
+    {
+      "id": "redis",
+      "layer": "data",
+      "title": "Redis specialist",
+      "detect": {
+        "npm": ["redis", "ioredis"],
+        "composer": ["predis/predis"],
+        "text": { "**/{pyproject.toml,requirements*.txt,Pipfile}": ["redis"], "**/go.mod": ["redis/go-redis", "go-redis/redis"] }
+      },
+      "owns": ["**/redis/**", "**/cache/**", "**/*redis*.{js,ts,py,php,go,rb}", "**/*cache*.{js,ts,py,php,go,rb}"],
+      "priority": 55,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Namespace keys consistently and set TTLs on cache entries.",
+        "Choose the fitting data structure (hash, set, sorted set, stream) instead of serialized blobs.",
+        "Handle cache misses and stampedes, and never treat Redis as the only copy of durable data unless it is configured for that."
+      ],
+      "slop": [
+        "Cache keys without expiry.",
+        "The KEYS command used in application code."
+      ]
+    },
+    {
+      "id": "dynamodb",
+      "layer": "data",
+      "title": "DynamoDB specialist",
+      "detect": { "npm": ["@aws-sdk/client-dynamodb", "@aws-sdk/lib-dynamodb", "dynamoose"], "text": { "**/{pyproject.toml,requirements*.txt,Pipfile}": ["pynamodb"] } },
+      "owns": ["**/*dynamo*.{js,ts,py}", "**/dynamodb/**"],
+      "priority": 60,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Design keys from access patterns first and add secondary indexes deliberately.",
+        "Use Query instead of Scan, and conditional writes for consistency.",
+        "Keep items small and use batch operations where they fit."
+      ],
+      "slop": [
+        "Scan used for lookups.",
+        "Relational modeling with many tables joined in application code."
+      ]
+    },
+    {
+      "id": "cosmosdb",
+      "layer": "data",
+      "title": "Azure Cosmos DB specialist",
+      "detect": {
+        "npm": ["@azure/cosmos"],
+        "text": { "**/{pyproject.toml,requirements*.txt,Pipfile}": ["azure-cosmos"], "**/*.csproj": ["Microsoft.Azure.Cosmos"] }
+      },
+      "owns": ["**/*cosmos*.{js,ts,py,cs}", "**/cosmos/**"],
+      "priority": 60,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Choose high-cardinality partition keys that match the main query patterns.",
+        "Keep hot-path queries within one partition and watch request unit cost.",
+        "Use one SDK client instance for the application's lifetime."
+      ],
+      "slop": [
+        "Cross-partition queries on hot paths.",
+        "A new client created per request."
+      ]
+    },
+    {
+      "id": "elasticsearch",
+      "layer": "data",
+      "title": "Elasticsearch and OpenSearch specialist",
+      "detect": {
+        "npm": ["@elastic/elasticsearch", "@opensearch-project/opensearch"],
+        "text": { "**/{pyproject.toml,requirements*.txt,Pipfile}": ["elasticsearch", "opensearch-py"] }
+      },
+      "owns": ["**/search/**", "**/*elastic*.{js,ts,py}", "**/*opensearch*.{js,ts,py}"],
+      "priority": 60,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Define explicit mappings instead of relying on dynamic mapping in production.",
+        "Index with the bulk API and use aliases for zero-downtime reindexing.",
+        "Use filter context for exact matches and query context for relevance scoring."
+      ],
+      "slop": [
+        "Dynamic mapping turning every field into text plus keyword.",
+        "Deep pagination with from and size."
+      ]
+    },
+    {
+      "id": "clickhouse",
+      "layer": "data",
+      "title": "ClickHouse specialist",
+      "detect": { "npm": ["@clickhouse/client"], "text": { "**/{pyproject.toml,requirements*.txt,Pipfile}": ["clickhouse-connect", "clickhouse-driver"] } },
+      "owns": ["**/clickhouse/**", "**/*.clickhouse.sql"],
+      "priority": 60,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Choose ORDER BY keys for the main filters and the right MergeTree engine.",
+        "Insert in large batches rather than row by row.",
+        "Use materialized views for pre-aggregation."
+      ],
+      "slop": [
+        "Frequent small inserts.",
+        "Updates and deletes used as if ClickHouse were an OLTP database."
+      ]
+    },
+    {
+      "id": "snowflake",
+      "layer": "data",
+      "title": "Snowflake specialist",
+      "detect": { "npm": ["snowflake-sdk"], "text": { "**/{pyproject.toml,requirements*.txt,Pipfile}": ["snowflake-connector-python", "snowflake-snowpark-python"] } },
+      "owns": ["**/snowflake/**", "**/*.snowflake.sql"],
+      "priority": 60,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Write set-based SQL and size warehouses deliberately instead of processing row by row.",
+        "Add clustering keys only for very large tables with clear filter patterns.",
+        "Use least-privilege roles and avoid SELECT * on wide tables."
+      ],
+      "slop": [
+        "Python loops over query results that SQL could aggregate.",
+        "Credentials hardcoded in connection code."
+      ]
+    },
+    {
+      "id": "drizzle",
+      "layer": "data",
+      "title": "Drizzle ORM specialist",
+      "detect": { "npm": ["drizzle-orm"] },
+      "owns": ["drizzle/**", "**/db/schema.{ts,js}", "**/db/schema/**", "src/db/**", "drizzle.config.*"],
+      "priority": 70,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Define the schema in TypeScript with explicit relations, indexes, and constraints.",
+        "Generate migrations with drizzle-kit and review them before applying.",
+        "Use the typed query builder with explicit selects and wrap multi-step writes in transactions."
+      ],
+      "slop": [
+        "Raw SQL strings where the typed builder expresses the query.",
+        "Drift between schema files and migrations."
+      ]
+    },
+    {
+      "id": "typeorm",
+      "layer": "data",
+      "title": "TypeORM specialist",
+      "detect": { "npm": ["typeorm"] },
+      "owns": ["**/*.entity.ts", "**/entities/**", "**/migrations/**/*.ts", "**/subscribers/**"],
+      "priority": 70,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Use explicit migrations and never enable synchronize in production.",
+        "Define relations with explicit join columns and indexes.",
+        "Use QueryBuilder or find options with select to avoid loading whole graphs."
+      ],
+      "slop": [
+        "synchronize: true outside local development.",
+        "Eager relations everywhere."
+      ]
+    },
+    {
+      "id": "sequelize",
+      "layer": "data",
+      "title": "Sequelize specialist",
+      "detect": { "npm": ["sequelize"] },
+      "owns": ["models/**", "migrations/**", "seeders/**", ".sequelizerc"],
+      "priority": 70,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Use migrations for every schema change and define associations in one place.",
+        "Choose attributes and include deliberately to avoid over-fetching.",
+        "Wrap multi-step writes in transactions."
+      ],
+      "slop": [
+        "sequelize.sync({ alter: true }) run at application startup.",
+        "Raw queries built with string interpolation."
+      ]
+    },
+    {
+      "id": "eloquent",
+      "layer": "data",
+      "title": "Eloquent and Laravel database specialist",
+      "detect": { "composer": ["laravel/framework"] },
+      "owns": ["app/Models/**", "database/**"],
+      "priority": 70,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Define relationships, casts, and $fillable deliberately, and never allow mass assignment of ownership fields.",
+        "Write migrations with foreign keys, indexes, and down methods, and use factories and seeders for test data.",
+        "Prevent N+1 queries with eager loading and use query scopes for reusable constraints."
+      ],
+      "slop": [
+        "$guarded = [] on models.",
+        "Raw DB queries where Eloquent or the query builder expresses the query clearly."
+      ]
+    },
+    {
+      "id": "doctrine",
+      "layer": "data",
+      "title": "Doctrine ORM specialist",
+      "detect": { "composer": ["doctrine/orm"] },
+      "owns": ["src/Entity/**", "src/Repository/**", "migrations/**"],
+      "priority": 70,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Map entities with attributes, keep invariants inside entity methods, and put queries in repositories.",
+        "Generate migrations with Doctrine Migrations and review them.",
+        "Avoid N+1 queries with fetch joins in DQL."
+      ],
+      "slop": [
+        "Anemic entities with a public setter for every field.",
+        "flush() called inside loops."
+      ]
+    },
+    {
+      "id": "sqlalchemy",
+      "layer": "data",
+      "title": "SQLAlchemy and Alembic specialist",
+      "detect": { "text": { "**/{pyproject.toml,requirements*.txt,setup.py,Pipfile}": ["sqlalchemy", "SQLAlchemy", "alembic"] } },
+      "owns": ["alembic/**", "alembic.ini", "**/models.py", "**/models/**/*.py", "**/db/**/*.py"],
+      "priority": 60,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Use SQLAlchemy 2.0 style with typed Mapped columns and select() statements.",
+        "Manage one session per unit of work and generate migrations with Alembic autogenerate, then review them.",
+        "Use selectinload or joinedload deliberately to avoid N+1 queries."
+      ],
+      "slop": [
+        "A global session shared across requests.",
+        "Autogenerated migrations committed without review."
+      ]
+    },
+    {
+      "id": "django-orm",
+      "layer": "data",
+      "title": "Django ORM specialist",
+      "detect": { "files": ["manage.py"], "text": { "**/{pyproject.toml,requirements*.txt,setup.py,Pipfile}": ["django", "Django"] } },
+      "owns": ["**/models.py", "**/models/**/*.py", "**/migrations/**/*.py"],
+      "priority": 70,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Declare constraints and indexes in Meta and use TextChoices or IntegerChoices for enumerations.",
+        "Create migrations with makemigrations and keep data migrations separate from schema migrations.",
+        "Put reusable query logic in custom managers and querysets."
+      ],
+      "slop": [
+        "Applied migrations edited by hand.",
+        "Queries inside loops instead of select_related or prefetch_related."
+      ]
+    },
+    {
+      "id": "dbt",
+      "layer": "data",
+      "title": "dbt specialist",
+      "detect": { "files": ["dbt_project.yml"] },
+      "owns": ["models/**", "macros/**", "seeds/**", "snapshots/**", "analyses/**", "dbt_project.yml"],
+      "priority": 70,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Layer models into staging, intermediate, and marts, referencing them with ref() and source().",
+        "Document and test models in schema YAML with unique, not_null, and relationships tests.",
+        "Use incremental models for large tables with a clear unique key."
+      ],
+      "slop": [
+        "Hardcoded table names instead of ref() and source().",
+        "One giant model doing every transformation."
+      ]
+    },
+    {
+      "id": "pyspark-glue",
+      "layer": "data",
+      "title": "PySpark and AWS Glue specialist",
+      "detect": { "text": { "**/{pyproject.toml,requirements*.txt,setup.py,Pipfile}": ["pyspark", "awsglue", "aws-glue-libs"] }, "files": ["**/glue/**/*.py"] },
+      "owns": ["glue/**", "jobs/**/*.py", "etl/**", "**/spark/**"],
+      "priority": 65,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Use DataFrame operations and built-in functions instead of Python UDFs where possible.",
+        "Partition outputs by query patterns and avoid producing many small files.",
+        "Make jobs idempotent and parameterized, using job bookmarks for incremental loads."
+      ],
+      "slop": [
+        "collect() or toPandas() on large datasets.",
+        "Python UDFs for operations Spark already provides."
+      ]
+    },
+    {
+      "id": "vector-stores",
+      "layer": "data",
+      "title": "Vector store specialist",
+      "detect": {
+        "npm": ["@pinecone-database/pinecone", "@qdrant/js-client-rest", "weaviate-client", "chromadb", "pgvector"],
+        "text": { "**/{pyproject.toml,requirements*.txt,Pipfile}": ["pgvector", "pinecone", "qdrant-client", "weaviate-client", "chromadb"] }
+      },
+      "owns": ["**/embeddings/**", "**/vector*/**", "**/*vector*.{py,ts,js}", "**/*embedding*.{py,ts,js}"],
+      "priority": 60,
+      "supersedes": [],
+      "modelFloor": "haiku",
+      "idioms": [
+        "Store the embedding model name and dimension with the data and keep them consistent.",
+        "Chunk documents deliberately, with overlap and metadata for filtering.",
+        "Use metadata filters and suitable index types, and batch upserts."
+      ],
+      "slop": [
+        "Re-embedding the whole corpus on every change.",
+        "Embeddings from different models mixed in one index."
+      ]
+    }
+  ]
+}
