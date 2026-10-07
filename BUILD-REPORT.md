@@ -134,3 +134,40 @@ Skipped: there is no `.env` with `OPENROUTER_API_KEY` at the repository root. `T
 ### New decisions
 
 D-061 to D-063 (Phase 0: P1, P2, P3), D-064 (F1), D-065 (F2), D-066 (F3), D-067 (F4), D-068 (F5), D-069 (F6), D-070 (F7), D-071 (F8), D-072 (F9), D-073 (F10), D-074 (F11), D-075 (F12). Full text in `docs/DECISIONS.md`.
+
+## Revision 0.3.0
+
+One change, requested directly by the developer: Jev decides whether a request needs a plan, so small and clear requests no longer pay for the Opus planner. One commit, `feat(0.3.0): Jev decides whether a request needs a plan`, pushed to `origin/main` on the developer's instruction (D-077).
+
+### What changed
+
+- **Intake.** The intake question set has a fifth question, `needs_plan`. `route.json` gains `plan`: `no` when Jev says no plan is needed and the request scores below Hard, otherwise `yes`. It is the same single Jev call per request as before, so the decision adds no call.
+- **Direct runs.** On `plan: no` the `run` skill prints `Small request: skipping the plan.`, spawns no planner, and calls the new `tenonry.mjs direct-plan`, which writes `plan.md` from the brief in plain code. Design (for UI work), the contract and tests, the build, the reviews, and the commits are unchanged.
+- **Test author.** One new rule: on a `direct: yes` plan it derives the acceptance criteria from the brief and keeps the contract as small as the request.
+- **Settings.** `routing.thresholds.planning` (`minNeedsPlan` 0.5, `minDifficulty` 2.0, `minUi` 0.5), editable and kept on re-init; an older `config.json` receives the defaults.
+- **Version 0.3.0**, so the next `/tenonry:run` in an existing project re-renders its agents and scripts.
+
+### Test results
+
+- `node --test`: **458 tests, 457 passed, 0 failed, 1 skipped** across 32 test files (about 45 seconds). The one skip is the live Jev test. Fifteen tests are new.
+- `node scripts/tenonry.mjs catalog-check`: passes; the catalog is untouched.
+- `claude plugin validate .` and `claude plugin validate . --strict`: both pass (Claude Code 2.1.285).
+- Existing tests changed because the behavior changed on purpose: the exact `route.json` and intake mapping comparisons now include `plan`, the shared intake fixture includes `needs_plan`, and the version assertions say 0.3.0.
+
+### Skipped or unverified checks
+
+| Check | Why | What stands in for it |
+|---|---|---|
+| Live Jev call with the new question | No `.env` with `OPENROUTER_API_KEY` at the repository root | Fixtures for every branch of the mapping; the question uses the same Noul type as `ambiguity` and `ui`. How Jev actually splits real requests between `yes` and `no` is therefore not measured yet |
+| A real `/tenonry:run <request>` and the install smoke test | Token cost; the skill change is body text only | `claude plugin validate`, the skill text tests, and a direct run driven through the real CLI in `tests/pipeline.test.mjs` |
+
+### Things worth knowing
+
+- **Without a Jev key nothing changes.** Every request is still planned, because there is no judgment to rely on. The saving needs `OPENROUTER_API_KEY` in the project's `.env`.
+- **A direct run still uses Opus once before the build.** The test author writes the contract and tests on Opus as before; UI work also still gets the art director. Only the planner is skipped (D-076, point 7).
+- **The first threshold is a guess.** `minNeedsPlan` 0.5 has not been tuned against real answers. If too many requests are still planned, raise it in `.tenonry/config.json`; the intake lines in `.tenonry/logs/jev-decisions.jsonl` show each `needs_plan` answer and the resulting decision.
+
+### New decisions
+
+D-076 (Jev decides whether a request needs a plan) and D-077 (pushed on the developer's instruction). Full text in `docs/DECISIONS.md`.
+

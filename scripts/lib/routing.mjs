@@ -40,6 +40,15 @@ export function intakeQuestions() {
       },
     },
     difficulty: { type: "score", instructions: "How difficult is this request to implement well in this stack?", criteria: DIFFICULTY_LEVELS },
+    needs_plan: {
+      type: "noul",
+      instructions:
+        "Does this request need a written product plan (scope, user stories, behavior rules, and acceptance criteria) before engineers can split it into tasks and tests, or is it small and clear enough to build directly from the request?",
+      criteria: {
+        true: "Several behaviors, screens, roles, or modules must be worked out and agreed before the work can be split up.",
+        false: "A small or well-understood change: the request itself says what to build, and an engineer could go straight to the tasks and tests.",
+      },
+    },
     task_type: {
       type: "choice",
       instructions: "What kind of work is this request?",
@@ -108,10 +117,12 @@ export function riskQuestions() {
 }
 
 export function mapIntake(answers, thresholds, family) {
+  const needsPlan = answers.needs_plan.noul >= thresholds.planning.minNeedsPlan || answers.difficulty.score >= thresholds.planning.minDifficulty;
   return {
     jev: "ok",
     fallbackReason: null,
     clarify: answers.ambiguity.noul >= thresholds.clarifyIfAmbiguity ? "yes" : "no",
+    plan: needsPlan ? "yes" : "no",
     difficulty: answers.difficulty.score,
     difficultyConfidence: answers.difficulty.confidence,
     taskType: answers.task_type.choice,
@@ -125,6 +136,7 @@ export function fallbackIntake(reason, family) {
     jev: "fallback",
     fallbackReason: reason,
     clarify: "auto",
+    plan: "yes",
     difficulty: null,
     difficultyConfidence: null,
     taskType: null,
@@ -229,6 +241,7 @@ export async function runIntake(root, runId, request, family) {
     fallbackReason: result.decision.fallbackReason,
     answers: result.answers ?? {},
     clarify: result.decision.clarify,
+    plan: result.decision.plan,
     difficulty: result.decision.difficulty,
     difficultyConfidence: result.decision.difficultyConfidence,
     taskType: result.decision.taskType,

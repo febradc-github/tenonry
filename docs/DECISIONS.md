@@ -383,3 +383,24 @@ Work order: `docs/FIX-0.2.0.md`. Entries start at D-061.
 - Context: Version, test command wording, and documents had to follow the fixes.
 - Decision: The version is 0.2.0 in `plugin.json`, `marketplace.json`, the dev `package.json`, and the examples in docs/03 (which now also show the marketplace `description` added in 0.1.0). Code reads the version only from `plugin.json`, so `config.pluginVersion`, `.tenonry/bin/VERSION`, and the manifest hash follow automatically, and existing projects re-render on their next run; the README changelog says so. `node --test tests/` became `node --test` in `CLAUDE.md`, `docs/08`, and also `docs/00-START-PROMPT.md`, which the work order did not name but which carried the same broken command. docs/01 section 8 gained the two user experience bullets, and docs/08 gained "Revision 0.2.0 tests".
 - Reason: One version everywhere, and no document that tells a reader to run a command that fails.
+
+## Decisions added for revision 0.3.0
+
+### D-076: Jev decides whether a request needs a plan
+- Context: Every `/tenonry:run` request went through the planner, an Opus agent at high effort, including renames, copy edits, and one-line fixes. The developer asked for a new Jev decision: plan only when it is necessary, and go straight to implementation for non-complex requests.
+- Decision: The intake question set gains a fifth question, `needs_plan` (Noul). `mapIntake` sets `route.plan` to `yes` when `needs_plan.noul >= planning.minNeedsPlan` or `difficulty.score >= planning.minDifficulty`, otherwise `no`. New thresholds `routing.thresholds.planning`: `minNeedsPlan` 0.5, `minDifficulty` 2.0, `minUi` 0.5. On `plan: no` the `run` skill prints `Small request: skipping the plan.` and calls the new command `tenonry.mjs direct-plan`, which writes `plan.md` in plain code: the metadata block (`ui`, `direct: yes`), a paragraph saying no planner ran, and the brief as written. The test author text gains one rule for `direct: yes` plans (derive the acceptance criteria from the brief, keep the contract as small as the request). Version 0.3.0, so existing projects re-render and receive the new script and agent text.
+- Details the request left open:
+  1. Jev unavailable (no key, disabled, timeout, error): `plan: yes`. Skipping the plan without a judgment would be the less conservative failure, and it is the behavior every earlier version had. A `route.json` without the field, from a run started before the update, also plans.
+  2. The difficulty clause. A request Jev scores as Hard or above is always planned even when `needs_plan` is low, so one wrong Noul answer cannot send a large change to the builders without a plan. Both numbers are user-editable.
+  3. A code-written `plan.md` instead of no `plan.md`. Every later step (art director, test author, specialists, resume) already reads `plan.md`; keeping the file means one delegation format and one resume path for both kinds of run, and the file states what it is so no agent mistakes it for a planner's work. The alternative, a second delegation shape without a plan line, would have changed three agent texts and the delegation code for the same result.
+  4. `ui` on a direct run comes from the intake `ui` answer (`>= planning.minUi`), because no planner exists to set it. The design step is unchanged: UI work still gets the art director and the design review.
+  5. `direct-plan` refuses (`plan_required`, exit 0) unless `route.json` says `plan: no`, so the orchestrator cannot skip the planner on its own judgment.
+  6. The clarify step is independent of the plan decision. An unclear but small request is clarified first, and the clarified brief is what `direct-plan` copies.
+  7. Not changed, on purpose: the test author still runs on Opus on direct runs. It decides file ownership and writes the tests that define done, which the architecture ranks above token cost (docs/01 section 1, goals 1 and 2), and the request named planning only. It is the remaining Opus cost before the build on a direct run.
+- Reason: The planner's value is working out scope and behavior. When the request already says what to build, that work is a restatement paid for at Opus prices.
+
+### D-077: Revision 0.3.0 was pushed to `origin/main` on the developer's instruction
+- Context: The hard limits in `CLAUDE.md` say never to push. The developer's request for this revision said to commit and push to `main` directly.
+- Decision: The revision is committed on `main` and pushed to `origin/main`. The hard limit stays as written for every other piece of work.
+- Reason: The limit exists so that an unattended build never publishes on its own judgment. An explicit instruction from the repository owner, for this one change, is not that case.
+

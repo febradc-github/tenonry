@@ -3,6 +3,6 @@
   "description": "Local marketplace for the Tenonry plugin.",
   "owner": { "name": "Dan Christian Febra" },
   "plugins": [
-    { "name": "tenonry", "source": "./", "description": "Specialist multi-agent pipeline with Jev routing.", "version": "0.2.0" }
+    { "name": "tenonry", "source": "./", "description": "Specialist multi-agent pipeline with Jev routing.", "version": "0.3.0" }
   ]
 }

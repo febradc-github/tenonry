@@ -9,7 +9,7 @@ Design goals, in priority order:
 1. **No AI slop.** Specialists follow language-level idioms. Reviewers are separate from builders. Tests are written from the spec before any implementation exists.
 2. **Single responsibility.** Every file in the project has exactly one owning agent. Builders never review, reviewers never edit, nobody edits tests except the test author.
 3. **Easy to use.** One command to remember. No setup step, no configuration needed, no prompts blocked, plain progress messages, and one-command undo.
-4. **Token efficiency.** Opus only where judgment changes the outcome. Cheap models for mechanical work. Deterministic code for every decision that is a fact, not a judgment. Noisy tool output filtered before it reaches context.
+4. **Token efficiency.** Opus only where judgment changes the outcome: a small, clear request skips the planner altogether. Cheap models for mechanical work. Deterministic code for every decision that is a fact, not a judgment. Noisy tool output filtered before it reaches context.
 
 ## 2. Components
 
@@ -137,9 +137,9 @@ The `library/` directory is deliberately not named `agents/`, so Claude Code doe
 ### Phase 1: prompt to contract
 
 1. User types `/tenonry:run <request>`.
-2. `hook-prompt-router.mjs` (UserPromptSubmit) sees the `/tenonry:run` prefix. It asks Jev the intake questions (ambiguity, difficulty, task type, UI involvement), creates the run directory and `route.json`, and records the main session's model. It never blocks the prompt. If the project is not set up yet, the hook does nothing and the `run` skill initializes the project, then runs the same intake through `tenonry.mjs intake`.
+2. `hook-prompt-router.mjs` (UserPromptSubmit) sees the `/tenonry:run` prefix. It asks Jev the intake questions (ambiguity, difficulty, whether a plan is needed, task type, UI involvement), creates the run directory and `route.json`, and records the main session's model. It never blocks the prompt. If the project is not set up yet, the hook does nothing and the `run` skill initializes the project, then runs the same intake through `tenonry.mjs intake`.
 3. The `run` skill reads `route.json`. If ambiguity is high, it invokes `clarify-intake`, which questions the user and saves `brief.md` through `tenonry.mjs write-brief --stdin`. Otherwise `tenonry.mjs write-brief` writes `brief.md` from the request.
-4. `tenonry-planner` writes `plan.md`: goal, scope, non-goals, stories, behavioral acceptance criteria, layers touched, UI involvement. High-level only.
+4. `tenonry-planner` writes `plan.md`: goal, scope, non-goals, stories, behavioral acceptance criteria, layers touched, UI involvement. High-level only. When `route.json` says `plan: no` (Jev judged the request small and clear), the run is a direct run: no planner is spawned, `tenonry.mjs direct-plan` writes `plan.md` from the brief in plain code, and the test author derives the acceptance criteria itself. Everything after this step is the same for both kinds of run.
 5. If the plan involves UI, `tenonry-art-director` creates or extends `.tenonry/design-direction.md` and writes the run's `design-brief.md`. On the first UI run in a project that already has an interface, it documents the visual language already in use and keeps it; it creates a new identity only when there is no interface yet or the brief asks for a redesign.
 6. `tenonry-test-author` writes `contract.json` and `contract.md` (tasks, owners, files, dependencies, interfaces, verification) and the failing tests. `tenonry.mjs contract-check` validates it; up to 2 repair rounds.
 
@@ -163,9 +163,9 @@ The `library/` directory is deliberately not named `agents/`, so Claude Code doe
 | Design direction | Art director (opus) |
 | Quality verdicts | Reviewers (opus or sonnet) |
 | Next specialist, run order, escalation, which reviewer types apply, stack activation | Code (`tenonry.mjs`, `init.mjs`) |
-| Model per task, owner of an unanticipated file, review risk, ambiguity | Jev |
+| Model per task, owner of an unanticipated file, review risk, ambiguity, whether a request needs a plan | Jev |
 
-Fallbacks: if Jev times out, errors, or no key exists, tasks run on sonnet (respecting model floors), code review runs on opus, and unowned files are assigned by ownership rules alone. If Jev's confidence is low, round up one model tier.
+Fallbacks: if Jev times out, errors, or no key exists, every request is planned, tasks run on sonnet (respecting model floors), code review runs on opus, and unowned files are assigned by ownership rules alone. If Jev's confidence is low, round up one model tier.
 
 ## 7. Failure policy
 
@@ -191,6 +191,7 @@ Fallbacks: if Jev times out, errors, or no key exists, tasks run on sonnet (resp
 ## 9. Cost controls
 
 - Only active specialists exist as agents, so descriptions of unused specialists never enter context.
+- The planner, an Opus agent, runs only when Jev says the request needs a plan. Small, clear requests go from the brief straight to the contract and tests.
 - Jev calls happen at fixed points only: one per `/tenonry:run`, one per dispatched task, one per review plan, one per unowned file. Each costs a fraction of a cent.
 - Model floors keep visual work off haiku. Everything else starts at the cheapest tier Jev deems sufficient.
 - The output filter keeps test and build logs out of context; full logs stay on disk.

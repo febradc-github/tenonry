@@ -29,6 +29,7 @@ Print each line when its event happens:
 - `Tip: Tenonry coordinates more reliably on Sonnet. Continuing on Haiku.` (when `route.mainModel.notice` is true)
 - `Clarifying a few details...`
 - `Planning...`
+- `Small request: skipping the plan.`
 - `Designing the look...`
 - `Writing the contract and tests: <n> tasks.`
 - `Building <k>/<n>: <task id> <title> (<model>)`
@@ -99,7 +100,11 @@ Setup is automatic. Optional: add OPENROUTER_API_KEY to .env for smarter model r
 
 ## Step 4: planning
 
-Print `Planning...`. Run `tenonry.mjs phase <id> planning`. Spawn `tenonry-planner` with model `opus` and this delegation:
+Run `tenonry.mjs phase <id> planning`. Then read `plan` in `route.json`.
+
+`plan: no` means Jev judged the request small and clear enough to build without a plan. Print `Small request: skipping the plan.` and run `tenonry.mjs direct-plan <id>`. It writes `plan.md` from the brief without any agent and returns `ui`; note it and go to step 5. Do not spawn the planner. If it returns `ok: false`, plan as below instead.
+
+Anything else (`plan: yes`, or no `plan` field): print `Planning...`. Spawn `tenonry-planner` with model `opus` and this delegation:
 
 ```
 TENONRY_PLAN

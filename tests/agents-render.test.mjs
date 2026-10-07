@@ -168,3 +168,11 @@ test("F9: every code reviewer may cite U1 to U5", () => {
   assert.ok(text.includes("rule id (`C1` to `C12`, `S1` and up for the slop list below, or `U1` to `U5` for the UI rules)"));
   assert.ok(text.includes("## Slop list for this specialty\n\n{{slop}}\n{{uiReview}}\n"));
 });
+
+test("0.3.0: the test author knows a direct plan is the brief, not a planner's plan", () => {
+  const rendered = render([{ root: ".", specialists: ["laravel"] }]).get("tenonry-test-author");
+  for (const text of [fs.readFileSync(path.join(libraryDir, "core", "test-author.md"), "utf8"), rendered]) {
+    assert.ok(text.includes("- A plan whose metadata says `direct: yes` was not written by the planner"));
+    assert.ok(text.includes("Derive the acceptance criteria from the brief yourself, as observable behaviors, record them in each task's `acceptance`, and keep the contract as small as the request, often a single task. Do not widen the scope."));
+  }
+});

@@ -32,6 +32,7 @@ Examples:
 - If `.claude/agents/` did not exist yet, Claude Code needs one restart to see the new agents. Tenonry saves your request first. After the restart, type `/tenonry:run` and it continues where it stopped.
 - Claude Code asks you to trust the workspace. Tenonry's file guards are agent hooks, and Claude Code runs project agent hooks only after you accept that prompt.
 - If the request is unclear, you get a few multiple-choice questions, at most two rounds. After that Tenonry works without interrupting you.
+- A small, clear request skips the plan: you see `Small request: skipping the plan.` instead of `Planning...`.
 - Progress appears as one short line per event. The run ends with what changed, how to try it, what needs attention, and how to undo it.
 
 ## Optional: smarter model routing
@@ -42,7 +43,7 @@ Add your OpenRouter key to the project's `.env` file:
 OPENROUTER_API_KEY=sk-or-...
 ```
 
-Tenonry reads the key from that file only, never from your shell environment, and never prints or logs it. Without a key everything still works: tasks run on Sonnet (never below a specialist's own minimum) and code reviews run on Opus. You see a one-time tip about it. Set `TENONRY_JEV_DISABLE=1` to turn Jev off even when a key exists.
+Tenonry reads the key from that file only, never from your shell environment, and never prints or logs it. With a key, Jev also decides whether a request needs a plan at all: a small, clear request skips the planning step, which runs on Opus, and goes straight to the tests and the build. Without a key everything still works: every request is planned, tasks run on Sonnet (never below a specialist's own minimum), and code reviews run on Opus. You see a one-time tip about it. Set `TENONRY_JEV_DISABLE=1` to turn Jev off even when a key exists.
 
 ## Signed-in screens
 
@@ -81,7 +82,7 @@ Each finished task becomes one local commit named `tenonry(<task>): <title>`. Te
 
 `.tenonry/config.json` holds knobs you can edit; they survive refreshes:
 
-- `routing.thresholds`: when Jev's answers send a task to Haiku, Sonnet, or Opus, and when to ask you questions
+- `routing.thresholds`: when Jev's answers send a task to Haiku, Sonnet, or Opus, when to ask you questions, and when a request is planned (`planning`: raise `minNeedsPlan` to skip the plan more often, set it to 0 to plan every request)
 - `limits`: parallel tasks, retries per model, and review rounds
 - `readGuard`: extra paths agents may not read, or paths to allow
 - `outputFilter`: how many lines of test output reach the model, and extra commands to filter
@@ -101,6 +102,12 @@ After about 20 tasks, `node .tenonry/bin/tenonry.mjs calibrate` compares Jev's c
 Delete `.claude/agents/tenonry-*.md` and the `.tenonry/` directory. Then uninstall the plugin with `claude plugin uninstall tenonry`.
 
 ## Changelog
+
+### 0.3.0
+
+Updating to 0.3.0 needs nothing from you: the next `/tenonry:run` in a project notices the new plugin version and re-renders that project's agents, rubrics, and scripts.
+
+- Jev decides whether a request needs a plan. Small, clear requests skip the planner, which runs on Opus, and go straight to the contract, the tests, and the build. Without a Jev key every request is still planned.
 
 ### 0.2.0
 

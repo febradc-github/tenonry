@@ -75,13 +75,13 @@ test("every agent mentioned in delegations exists in the library", () => {
 test("the plugin manifests carry the documented metadata", () => {
   const plugin = JSON.parse(read(".claude-plugin", "plugin.json"));
   assert.equal(plugin.name, "tenonry");
-  assert.equal(plugin.version, "0.2.0");
+  assert.equal(plugin.version, "0.3.0");
   assert.deepEqual(plugin.author, { name: "Dan Christian Febra" });
   assert.equal(plugin.license, undefined);
   assert.equal(plugin.repository, undefined);
   const market = JSON.parse(read(".claude-plugin", "marketplace.json"));
   assert.equal(market.name, "tenonry-local");
-  assert.deepEqual(market.plugins[0], { name: "tenonry", source: "./", description: "Specialist multi-agent pipeline with Jev routing.", version: "0.2.0" });
+  assert.deepEqual(market.plugins[0], { name: "tenonry", source: "./", description: "Specialist multi-agent pipeline with Jev routing.", version: "0.3.0" });
 });
 
 test("the user README follows the required order and says the license is not chosen", () => {
@@ -130,7 +130,7 @@ test("F12: the README changelog lists the eleven 0.2.0 changes and the automatic
 
 test("F12: every manifest and the dev package agree on the version", () => {
   const version = JSON.parse(read(".claude-plugin", "plugin.json")).version;
-  assert.equal(version, "0.2.0");
+  assert.equal(version, "0.3.0");
   assert.equal(JSON.parse(read(".claude-plugin", "marketplace.json")).plugins[0].version, version);
   assert.equal(JSON.parse(read("package.json")).version, version);
 });
@@ -140,4 +140,27 @@ test("F12: no document still tells anyone to run node --test with a directory", 
     // The directory form fails on Node 22 and newer (D-044); naming one test file is fine.
     assert.doesNotMatch(read(file), /node --test tests\/(?![\w.-])/, file);
   }
+});
+
+test("0.3.0: the run skill skips the planner only when route.json says plan: no", () => {
+  const skill = read("skills", "run", "SKILL.md");
+  const step = /## Step 4: planning\n\n([\s\S]*?)\n\n## Step 5/.exec(skill)[1];
+  const [setup, direct, planned] = step.split("\n\n");
+  assert.equal(setup, "Run `tenonry.mjs phase <id> planning`. Then read `plan` in `route.json`.");
+  assert.match(direct, /^`plan: no` means/);
+  assert.ok(direct.includes("Print `Small request: skipping the plan.` and run `tenonry.mjs direct-plan <id>`."));
+  assert.ok(direct.includes("Do not spawn the planner."));
+  assert.ok(direct.includes("If it returns `ok: false`, plan as below instead."));
+  assert.match(planned, /^Anything else \(`plan: yes`, or no `plan` field\): print `Planning\.\.\.`\. Spawn `tenonry-planner` with model `opus`/);
+  assert.ok(skill.includes("- `Small request: skipping the plan.`"), "the skip has its own progress line");
+});
+
+test("0.3.0: the README changelog and the routing section say when the plan is skipped", () => {
+  const readme = read("README.md");
+  const section = readme.slice(readme.indexOf("### 0.3.0"), readme.indexOf("### 0.2.0"));
+  assert.ok(readme.indexOf("### 0.3.0") > readme.indexOf("## Changelog"));
+  assert.equal(section.split("\n").filter((line) => line.startsWith("- ")).length, 1);
+  assert.match(section, /Jev decides whether a request needs a plan/);
+  assert.match(section, /re-renders that project's agents/);
+  assert.match(readme, /Without a key everything still works: every request is planned/);
 });

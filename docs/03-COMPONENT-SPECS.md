@@ -9,7 +9,7 @@ All paths are relative to the plugin root unless marked `<project>`. Every JSON 
 ```json
 {
   "name": "tenonry",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Specialist multi-agent pipeline: Jev-routed models, spec-first tests, single-owner files, design and code reviewers.",
   "author": { "name": "Dan Christian Febra" },
   "keywords": ["agents", "orchestration", "jev", "openrouter", "code-quality", "design"]
@@ -24,7 +24,7 @@ All paths are relative to the plugin root unless marked `<project>`. Every JSON 
   "description": "Local marketplace for the Tenonry plugin.",
   "owner": { "name": "Dan Christian Febra" },
   "plugins": [
-    { "name": "tenonry", "source": "./", "description": "Specialist multi-agent pipeline with Jev routing.", "version": "0.2.0" }
+    { "name": "tenonry", "source": "./", "description": "Specialist multi-agent pipeline with Jev routing.", "version": "0.3.0" }
   ]
 }
 ```
@@ -232,7 +232,7 @@ Two priority bands in the catalog are deliberate. The styling specialists (`css`
 {
   "version": 1,
   "plugin": "tenonry",
-  "pluginVersion": "0.2.0",
+  "pluginVersion": "0.3.0",
   "initializedAt": "<ISO>",
   "packages": [
     { "root": ".", "packageManager": "npm", "specialists": ["laravel", "eloquent", "vue", "tailwind", "html", "php", "nodejs"] }
@@ -248,6 +248,7 @@ Two priority bands in the catalog are deliberate. The styling specialists (`css`
     "timeoutMs": 8000,
     "thresholds": {
       "clarifyIfAmbiguity": 0.6,
+      "planning": { "minNeedsPlan": 0.5, "minDifficulty": 2.0, "minUi": 0.5 },
       "haiku": { "minFullySpecified": 0.8, "maxDifficulty": 0.6, "maxBlastRadius": 0.5 },
       "opus": { "minDifficulty": 2.0, "minBlastRadius": 1.5 },
       "roundUpIfConfidenceBelow": 0.5,
@@ -280,6 +281,7 @@ On re-init, `routing`, `limits`, `readGuard`, and `outputFilter` are preserved f
   "fallbackReason": null,
   "answers": { },
   "clarify": "no",
+  "plan": "yes",
   "difficulty": 1.2,
   "difficultyConfidence": 0.81,
   "taskType": "feature",
@@ -288,7 +290,7 @@ On re-init, `routing`, `limits`, `readGuard`, and `outputFilter` are preserved f
 }
 ```
 
-`clarify` is `yes`, `no`, or `auto` (Jev unavailable: the clarify-intake skill decides). `jev` is `ok` or `fallback`. `mainModel.notice` is true when the main session runs on Haiku; the `run` skill then shows a one-line tip and continues.
+`clarify` is `yes`, `no`, or `auto` (Jev unavailable: the clarify-intake skill decides). `plan` is `yes` or `no`: `no` makes the run a direct run that skips the planner (`docs/04-JEV-ROUTING.md` section 3); Jev unavailable: `yes`. A `route.json` without the field, written by an older version, counts as `yes`. `jev` is `ok` or `fallback`. `mainModel.notice` is true when the main session runs on Haiku; the `run` skill then shows a one-line tip and continues.
 
 ### 4.3 `run.json`
 
@@ -532,9 +534,10 @@ Single CLI used by the `run` skill. Run from the project as `node .tenonry/bin/t
 
 | Command | Behavior |
 |---|---|
-| `new-run --prompt <text>`, `new-run --prompt-stdin`, or `new-run --prompt-file <path>` | `state.newRun`. Returns `{ runId, runDir }`. Writes `route.json` with `jev: "fallback"`, `fallbackReason: "no_hook"`, `clarify: "auto"`, and `mainModel: { current: "unknown", notice: false }`. `--prompt-stdin` reads the request from standard input and strips one trailing newline; empty input prints `{ ok: false, error: "empty_prompt" }` and exits 1. The `run` skill passes the request through a quoted heredoc, so no temporary file and no shell quoting is needed |
+| `new-run --prompt <text>`, `new-run --prompt-stdin`, or `new-run --prompt-file <path>` | `state.newRun`. Returns `{ runId, runDir }`. Writes `route.json` with `jev: "fallback"`, `fallbackReason: "no_hook"`, `clarify: "auto"`, `plan: "yes"`, and `mainModel: { current: "unknown", notice: false }`. `--prompt-stdin` reads the request from standard input and strips one trailing newline; empty input prints `{ ok: false, error: "empty_prompt" }` and exits 1. The `run` skill passes the request through a quoted heredoc, so no temporary file and no shell quoting is needed |
 | `write-brief <run>` | Writes `.tenonry/runs/<run>/brief.md` as `# Request`, a blank line, the run's prompt verbatim (from `route.json` `prompt`, else `run.json` `prompt`), and a trailing newline. Returns `{ path }` |
 | `write-brief <run> --stdin` | Writes standard input to `brief.md` as given, ensuring one trailing newline. Empty input prints `{ ok: false, error: "empty_brief" }` and exits 1. Returns `{ path }`. Used by the clarify-intake skill |
+| `direct-plan <run>` | Direct runs only (`route.json` has `plan: "no"`). Writes `.tenonry/runs/<run>/plan.md` in plain code, with no agent: the metadata block `ui: <yes|no>` and `direct: yes`, the heading `# Direct run`, one paragraph saying that no planner ran and the brief is the whole specification, then `brief.md` as written (when `brief.md` is missing, the same text `write-brief <run>` would write). `ui` is `yes` when `route.json` `ui` is at least `planning.minUi`. Returns `{ path, ui }`. Any other `plan` value changes nothing and returns `{ ok: false, reason: "plan_required" }`; the `run` skill then spawns the planner. Calling it again rewrites the same file |
 | `intake <run>` | Runs `runIntake` for the run's prompt (same Jev questions and mapping as the hook) and rewrites `route.json`. Used when the hook did not route the prompt (first run before setup, or hook failure) |
 | `status [<run>]` | Returns the run (default: active run) with task statuses, plus `display`: a ready-to-print plain-text summary (section 6.11) |
 | `undo [<run>]` | Section 6.12 |

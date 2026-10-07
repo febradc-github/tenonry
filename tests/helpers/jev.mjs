@@ -8,6 +8,7 @@ export const BASE_ANSWERS = {
   intake: {
     ambiguity: { type: "noul", noul: 0.2 },
     difficulty: { type: "score", score: 1.1, confidence: 0.85, probabilities: { 0: 0.05, 1: 0.8, 2: 0.15, 3: 0 } },
+    needs_plan: { type: "noul", noul: 0.8 },
     task_type: { type: "choice", choice: "feature", confidence: 0.8, probabilities: { feature: 0.9 } },
     ui: { type: "noul", noul: 0.9 },
   },
@@ -22,6 +23,14 @@ export const BASE_ANSWERS = {
     blast_radius: { type: "score", score: 0.4, confidence: 0.9 },
   },
 };
+
+// Intake answers for a small, clear request that Jev routes past planning.
+export const directIntake = ({ needsPlan = 0.1, difficulty = 0.4, ui = 0.1 } = {}) => ({
+  ...BASE_ANSWERS.intake,
+  difficulty: { type: "score", score: difficulty, confidence: 0.9 },
+  needs_plan: { type: "noul", noul: needsPlan },
+  ui: { type: "noul", noul: ui },
+});
 
 export const dispatchAnswers = ({ difficulty = 0.3, difficultyConfidence = 0.9, specified = 0.92, blast = 0.2, blastConfidence = 0.9 } = {}) => ({
   difficulty: { type: "score", score: difficulty, confidence: difficultyConfidence },

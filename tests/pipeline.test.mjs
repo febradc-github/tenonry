@@ -2,8 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { setupScenario } from "./helpers/scenario.mjs";
-import { dispatchAnswers, riskAnswers } from "./helpers/jev.mjs";
+import { setupScenario, contractFor } from "./helpers/scenario.mjs";
+import { dispatchAnswers, directIntake, riskAnswers } from "./helpers/jev.mjs";
 import { git } from "./helpers/project.mjs";
 
 const SCORES = { ux: 8, visual: 8, content: 8, accessibility: 8, performance: 8, responsive: 8, innovation: 8 };
@@ -120,4 +120,32 @@ test("a recovered run resumes where it stopped", () => {
   s.cli("recover", s.runId);
   const events = drive(s);
   assert.deepEqual(events.filter((e) => e.startsWith("done")), ["done T1 committed", "done T2 committed", "done T3 committed"]);
+});
+
+test("a direct run: no planner, plan.md from the brief, then the usual contract, build, review, and commit", () => {
+  const s = setupScenario({ contract: false, jev: { intake: directIntake(), dispatch: dispatchAnswers(), risk: riskAnswers(0.1, 0.3) } });
+  // skills/run/SKILL.md steps 2 to 6, with the test author played by the test.
+  assert.equal(s.cli("intake", s.runId).plan, "no");
+  s.cli("write-brief", s.runId);
+  s.cli("phase", s.runId, "planning");
+  assert.equal(s.cli("direct-plan", s.runId).ui, "no");
+  s.cli("phase", s.runId, "contract");
+  const [task] = contractFor(s.runId).tasks;
+  s.writeContract(contractFor(s.runId, { interfaces: [], tasks: [task] }));
+  assert.equal(s.cli("contract-check", s.runId).valid, true);
+  s.cli("phase", s.runId, "building");
+
+  const [first] = s.cli("next", s.runId).ready;
+  assert.match(first.delegation, new RegExp(`^plan: \\.tenonry/runs/${s.runId}/plan\\.md$`, "m"), "builders are pointed at the plan file that direct-plan wrote");
+  assert.match(fs.readFileSync(path.join(s.root, ".tenonry", "runs", s.runId, "plan.md"), "utf8"), /^---\nui: no\ndirect: yes\n---\n# Direct run\n/);
+  s.cli("recover", s.runId);
+
+  assert.deepEqual(drive(s), ["build T1 haiku", "done T1 committed"]);
+  s.cli("phase", s.runId, "final-gate");
+  s.flag(true);
+  assert.equal(s.cli("final-gate", s.runId).result, "pass");
+  const report = s.cli("report", s.runId);
+  assert.equal(report.summary.done, 1);
+  assert.deepEqual(report.summary.attention, []);
+  assert.deepEqual(s.log().filter((line) => line.kind === "intake").map((line) => line.decision.plan), ["no"]);
 });

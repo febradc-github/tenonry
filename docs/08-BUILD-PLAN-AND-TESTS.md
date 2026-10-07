@@ -140,3 +140,14 @@ The fixes in `docs/FIX-0.2.0.md` each list their required tests. Where they live
 - F10 (scoring profiles): `tests/review.test.mjs` (product at 7.50, showcase failure, innovation 4, missing profile, tables summing to 1.00).
 - F11 (live Jev): `tests/jev-live.test.mjs`, skipped unless `TENONRY_LIVE=1` and a key in the repository `.env`.
 - F12 (housekeeping): `tests/skills.test.mjs` and `tests/init.test.mjs` (version 0.2.0, README order).
+
+## Revision 0.3.0 tests
+
+One change (decision D-076): Jev decides at intake whether a request needs a plan.
+
+- Mapping (`plan` yes by need, yes by difficulty, no, inclusive boundaries, fallback `yes`, custom thresholds): `tests/routing.test.mjs`.
+- `route.json` from the hook and from `new-run` plus `intake`: `tests/hook-prompt-router.test.mjs` and `tests/run-commands.test.mjs`.
+- `direct-plan` (the file it writes, `ui` from the threshold, a clarified brief kept as written, a missing brief, the refusal when a plan is required, an old `route.json` without the field): `tests/run-commands.test.mjs`.
+- A direct run through the rest of the pipeline (contract, build, review, commit, report): `tests/pipeline.test.mjs`.
+- The run skill's two branches, the test author's direct rule, and defaults reaching an existing config on re-init: `tests/skills.test.mjs`, `tests/agents-render.test.mjs`, and `tests/init.test.mjs`.
+- Version 0.3.0: `tests/skills.test.mjs` and `tests/init.test.mjs`.

@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { runNode, script } from "./helpers/run.mjs";
 import { makeProject } from "./helpers/project.mjs";
-import { writeFixture, BASE_ANSWERS } from "./helpers/jev.mjs";
+import { writeFixture, BASE_ANSWERS, directIntake } from "./helpers/jev.mjs";
 import { readState } from "../scripts/lib/state.mjs";
 import { extractRequest } from "../scripts/hook-prompt-router.mjs";
 
@@ -30,6 +30,7 @@ test("creates the run and route.json, and prints TENONRY_ROUTE", () => {
   const saved = routeFile(root, runId);
   assert.equal(saved.prompt, "add a loyalty page");
   assert.equal(saved.jev, "ok");
+  assert.equal(saved.plan, "yes");
   assert.deepEqual(saved.mainModel, { current: "sonnet", notice: false });
   assert.equal(readState(root).activeRun, runId);
   assert.equal(JSON.parse(fs.readFileSync(path.join(root, ".tenonry", "runs", runId, "run.json"), "utf8")).prompt, "add a loyalty page");
@@ -40,6 +41,17 @@ test("high ambiguity asks to clarify", () => {
   const fixture = writeFixture({ intake: { ...BASE_ANSWERS.intake, ambiguity: { type: "noul", noul: 0.9 } } });
   const result = route(root, "/tenonry:run make it better", {}, { TENONRY_JEV_FIXTURE: fixture });
   assert.match(result.json.hookSpecificOutput.additionalContext, /clarify=yes/);
+});
+
+test("a small, clear request is routed past planning", () => {
+  const root = makeProject();
+  const result = route(root, "/tenonry:run rename the Save button to Save changes", {}, { TENONRY_JEV_FIXTURE: writeFixture({ intake: directIntake() }) });
+  const saved = routeFile(root, runIdOf(result));
+  assert.equal(saved.plan, "no");
+  assert.equal(saved.clarify, "no");
+  assert.equal(saved.answers.needs_plan.noul, 0.1);
+  const log = fs.readFileSync(path.join(root, ".tenonry", "logs", "jev-decisions.jsonl"), "utf8");
+  assert.equal(JSON.parse(log.trim()).decision.plan, "no", "the decision is logged");
 });
 
 test("ignores prompts without /tenonry:run", () => {
@@ -113,6 +125,7 @@ test("falls back cleanly with no key", () => {
   assert.equal(saved.jev, "fallback");
   assert.equal(saved.fallbackReason, "no_key");
   assert.equal(saved.clarify, "auto");
+  assert.equal(saved.plan, "yes", "without Jev every request is planned");
 });
 
 test("falls back when Jev is disabled or the fixture lacks the intake answers", () => {

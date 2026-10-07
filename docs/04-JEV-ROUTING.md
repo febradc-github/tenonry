@@ -63,6 +63,14 @@ Questions:
     "instructions": "How difficult is this request to implement well in this stack?",
     "criteria": "<difficulty levels from section 2>"
   },
+  "needs_plan": {
+    "type": "noul",
+    "instructions": "Does this request need a written product plan (scope, user stories, behavior rules, and acceptance criteria) before engineers can split it into tasks and tests, or is it small and clear enough to build directly from the request?",
+    "criteria": {
+      "true": "Several behaviors, screens, roles, or modules must be worked out and agreed before the work can be split up.",
+      "false": "A small or well-understood change: the request itself says what to build, and an engineer could go straight to the tasks and tests."
+    }
+  },
   "task_type": {
     "type": "choice",
     "instructions": "What kind of work is this request?",
@@ -92,11 +100,14 @@ Mapping:
 | Output | Rule |
 |---|---|
 | `clarify` | `yes` when `ambiguity.noul >= clarifyIfAmbiguity`, else `no`. Jev failed: `auto` |
+| `plan` | `yes` when `needs_plan.noul >= planning.minNeedsPlan` or `difficulty.score >= planning.minDifficulty`, else `no`. Jev failed: `yes` |
 | `difficulty`, `difficultyConfidence` | `difficulty.score`, `difficulty.confidence` |
 | `taskType` | `task_type.choice` |
-| `ui` | `ui.noul` (informational for the planner) |
+| `ui` | `ui.noul` (informational for the planner; on a direct run it decides the design step, see below) |
 | `mainModel.current` | the main session's model family (not a Jev answer; see `docs/03-COMPONENT-SPECS.md` section 8.2) |
 | `mainModel.notice` | true when the family is `haiku`. Nothing is ever blocked |
+
+`plan: no` makes the run a direct run: the `run` skill skips the planner (an Opus agent) and `tenonry.mjs direct-plan` writes `plan.md` from the brief in plain code, so the test author goes straight to the contract and tests. The difficulty clause is a safety net: a request Jev scores as Hard or above is always planned, whatever `needs_plan` says. On a direct run no planner exists to set `ui`, so `direct-plan` sets `ui: yes` when `ui.noul >= planning.minUi`. Setting `planning.minNeedsPlan` to 0 plans every request; setting it above 1 leaves only the difficulty clause.
 
 ## 4. Dispatch (`tenonry.mjs next`, once per task start without a set tier)
 
@@ -204,7 +215,7 @@ Mapping: code reviewer on `opus` when `risky.noul >= codeReviewOpus.minRisky` or
 
 | Point | Jev unavailable (`disabled`, `no_key`, `timeout`, `http_*`, `network`, `invalid_response`) |
 |---|---|
-| Intake | `clarify: "auto"` |
+| Intake | `clarify: "auto"`, `plan: "yes"` |
 | Dispatch | `sonnet`, then apply floor |
 | Unowned file | extension heuristic (`docs/03-COMPONENT-SPECS.md` section 6.6 step 3) |
 | Review risk | code reviewer on `opus` |
@@ -226,6 +237,7 @@ Low confidence is not a failure: the answer is used and the round-up rule applie
   "intake": {
     "ambiguity": { "type": "noul", "noul": 0.2 },
     "difficulty": { "type": "score", "score": 1.1, "confidence": 0.85, "probabilities": { "0": 0.05, "1": 0.8, "2": 0.15, "3": 0 } },
+    "needs_plan": { "type": "noul", "noul": 0.8 },
     "task_type": { "type": "choice", "choice": "feature", "confidence": 0.8, "probabilities": { "feature": 0.9 } },
     "ui": { "type": "noul", "noul": 0.9 }
   },
@@ -244,7 +256,7 @@ Low confidence is not a failure: the answer is used and the round-up rule applie
 }
 ```
 
-Tests must include fixtures that exercise every mapping branch: haiku, sonnet, opus by difficulty, opus by blast radius, round-up by low confidence, floors, clarify yes and no, the Haiku notice on and off, owner accepted, owner rejected for low confidence, risky opus, and every fallback reason.
+Tests must include fixtures that exercise every mapping branch: haiku, sonnet, opus by difficulty, opus by blast radius, round-up by low confidence, floors, clarify yes and no, plan yes by need, plan yes by difficulty, plan no, the Haiku notice on and off, owner accepted, owner rejected for low confidence, risky opus, and every fallback reason.
 
 ## 10. Live check (opt-in)
 

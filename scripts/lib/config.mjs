@@ -6,6 +6,7 @@ export const DEFAULT_ROUTING = {
   timeoutMs: 8000,
   thresholds: {
     clarifyIfAmbiguity: 0.6,
+    planning: { minNeedsPlan: 0.5, minDifficulty: 2.0, minUi: 0.5 },
     haiku: { minFullySpecified: 0.8, maxDifficulty: 0.6, maxBlastRadius: 0.5 },
     opus: { minDifficulty: 2.0, minBlastRadius: 1.5 },
     roundUpIfConfidenceBelow: 0.5,

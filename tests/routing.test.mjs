@@ -7,7 +7,7 @@ import {
   currentModelFamily, runIntake, readRoute, ownerQuestions,
 } from "../scripts/lib/routing.mjs";
 import { DEFAULT_ROUTING } from "../scripts/lib/config.mjs";
-import { BASE_ANSWERS, dispatchAnswers, riskAnswers, writeFixture } from "./helpers/jev.mjs";
+import { BASE_ANSWERS, directIntake, dispatchAnswers, riskAnswers, writeFixture } from "./helpers/jev.mjs";
 import { makeProject } from "./helpers/project.mjs";
 import { newRun } from "../scripts/lib/state.mjs";
 
@@ -36,9 +36,41 @@ test("intake: clarify yes at or above the ambiguity threshold, no below", () => 
 test("intake maps difficulty, task type, and ui", () => {
   const mapped = mapIntake(BASE_ANSWERS.intake, thresholds, "opus");
   assert.deepEqual(mapped, {
-    jev: "ok", fallbackReason: null, clarify: "no", difficulty: 1.1, difficultyConfidence: 0.85, taskType: "feature", ui: 0.9,
+    jev: "ok", fallbackReason: null, clarify: "no", plan: "yes", difficulty: 1.1, difficultyConfidence: 0.85, taskType: "feature", ui: 0.9,
     mainModel: { current: "opus", notice: false },
   });
+});
+
+test("intake: plan no for a small, clear request; yes at or above the need threshold", () => {
+  const plan = (needsPlan) => mapIntake(directIntake({ needsPlan }), thresholds, "sonnet").plan;
+  assert.equal(plan(0.1), "no");
+  assert.equal(plan(0.49), "no");
+  assert.equal(plan(0.5), "yes");
+  assert.equal(plan(0.95), "yes");
+});
+
+test("intake: a hard request is planned even when Jev says no plan is needed", () => {
+  const plan = (difficulty) => mapIntake(directIntake({ needsPlan: 0.05, difficulty }), thresholds, "sonnet").plan;
+  assert.equal(plan(1.99), "no");
+  assert.equal(plan(2.0), "yes");
+  assert.equal(plan(3), "yes");
+});
+
+test("intake: the planning thresholds are read from the config", () => {
+  const always = { ...thresholds, planning: { ...thresholds.planning, minNeedsPlan: 0 } };
+  assert.equal(mapIntake(directIntake({ needsPlan: 0 }), always, "sonnet").plan, "yes");
+  const rarely = { ...thresholds, planning: { ...thresholds.planning, minNeedsPlan: 1.1 } };
+  assert.equal(mapIntake(directIntake({ needsPlan: 1 }), rarely, "sonnet").plan, "no");
+  assert.equal(mapIntake(directIntake({ needsPlan: 1, difficulty: 2.4 }), rarely, "sonnet").plan, "yes");
+});
+
+test("intake: the plan decision does not depend on the clarify decision", () => {
+  const unclear = mapIntake({ ...directIntake(), ambiguity: { type: "noul", noul: 0.9 } }, thresholds, "sonnet");
+  assert.deepEqual([unclear.clarify, unclear.plan], ["yes", "no"]);
+});
+
+test("intake fallback always plans, whatever the reason", () => {
+  for (const reason of ["disabled", "no_key", "timeout", "http_500", "network", "invalid_response"]) assert.equal(fallbackIntake(reason, "sonnet").plan, "yes", reason);
 });
 
 test("the Haiku notice is on for haiku and off for sonnet, opus, fable, and unknown", () => {
@@ -50,7 +82,7 @@ test("the Haiku notice is on for haiku and off for sonnet, opus, fable, and unkn
 
 test("intake fallback asks the clarify skill to decide", () => {
   assert.deepEqual(fallbackIntake("timeout", "sonnet"), {
-    jev: "fallback", fallbackReason: "timeout", clarify: "auto", difficulty: null, difficultyConfidence: null, taskType: null, ui: null,
+    jev: "fallback", fallbackReason: "timeout", clarify: "auto", plan: "yes", difficulty: null, difficultyConfidence: null, taskType: null, ui: null,
     mainModel: { current: "sonnet", notice: false },
   });
 });
@@ -170,6 +202,7 @@ test("runIntake writes route.json from a fixture", async () => {
     assert.equal(route.prompt, "add points");
     assert.equal(route.jev, "ok");
     assert.equal(route.clarify, "no");
+    assert.equal(route.plan, "yes");
     assert.equal(route.mainModel.notice, true);
     assert.deepEqual(route.answers, BASE_ANSWERS.intake);
   } finally {

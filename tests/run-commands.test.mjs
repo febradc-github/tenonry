@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { setupScenario } from "./helpers/scenario.mjs";
-import { dispatchAnswers, writeFixture, BASE_ANSWERS } from "./helpers/jev.mjs";
+import { dispatchAnswers, directIntake, writeFixture, BASE_ANSWERS } from "./helpers/jev.mjs";
 import { git, makeProject } from "./helpers/project.mjs";
 import { runNode } from "./helpers/run.mjs";
 
@@ -19,7 +19,7 @@ test("new-run creates a run with a fallback route", () => {
   const route = JSON.parse(fs.readFileSync(path.join(s.root, second.runDir, "route.json"), "utf8"));
   assert.deepEqual(route, {
     runId: second.runId, createdAt: route.createdAt, prompt: "second request", jev: "fallback", fallbackReason: "no_hook", answers: {},
-    clarify: "auto", difficulty: null, difficultyConfidence: null, taskType: null, ui: null, mainModel: { current: "unknown", notice: false },
+    clarify: "auto", plan: "yes", difficulty: null, difficultyConfidence: null, taskType: null, ui: null, mainModel: { current: "unknown", notice: false },
   });
   assert.equal(JSON.parse(fs.readFileSync(`${s.runDir}/run.json`, "utf8")).phase, "stopped", "the previous unfinished run is stopped");
 });
@@ -38,6 +38,7 @@ test("intake rewrites route.json from Jev for a run made by new-run", () => {
   const route = s.cli("intake", s.runId);
   assert.equal(route.jev, "ok");
   assert.equal(route.clarify, "yes");
+  assert.equal(route.plan, "yes");
   assert.equal(route.prompt, "add loyalty points");
   assert.equal(route.taskType, "feature");
   const { ok, ...printed } = route;
@@ -56,8 +57,72 @@ test("intake keeps the main model recorded by the hook and falls back without Je
   assert.equal(rerouted.jev, "fallback");
   assert.equal(rerouted.fallbackReason, "disabled");
   assert.equal(rerouted.clarify, "auto");
+  assert.equal(rerouted.plan, "yes");
   assert.deepEqual(rerouted.mainModel, { current: "haiku", notice: true });
   assert.equal(s.cli.raw("intake", "r-nope").status, 1);
+});
+
+const DIRECT_INTRO =
+  "No planner ran for this request. Jev judged it small and clear enough to build without a separate plan, so the brief below is the whole specification. Build exactly what it asks, completely, and nothing more.";
+
+test("direct-plan writes plan.md from the brief when Jev routed the run past planning", () => {
+  const s = setupScenario({ contract: false, jev: { intake: directIntake() } });
+  assert.equal(s.cli("intake", s.runId).plan, "no");
+  s.cli("write-brief", s.runId);
+  const result = s.cli("direct-plan", s.runId);
+  assert.deepEqual(result, { ok: true, path: `.tenonry/runs/${s.runId}/plan.md`, ui: "no" });
+  const plan = fs.readFileSync(`${s.runDir}/plan.md`, "utf8");
+  assert.equal(plan, `---\nui: no\ndirect: yes\n---\n# Direct run\n\n${DIRECT_INTRO}\n\n# Request\n\nadd loyalty points\n`);
+  assert.deepEqual(s.cli("direct-plan", s.runId), result, "running it again is harmless");
+  assert.equal(fs.readFileSync(`${s.runDir}/plan.md`, "utf8"), plan);
+  assert.equal(s.run().phase, "intake", "it never moves the phase by itself");
+});
+
+test("direct-plan sets ui from the intake answer, at the threshold and through the config", () => {
+  for (const [ui, expected] of [[0.49, "no"], [0.5, "yes"], [0.9, "yes"]]) {
+    const s = setupScenario({ contract: false, jev: { intake: directIntake({ ui }) } });
+    s.cli("intake", s.runId);
+    assert.equal(s.cli("direct-plan", s.runId).ui, expected, String(ui));
+    assert.match(fs.readFileSync(`${s.runDir}/plan.md`, "utf8"), new RegExp(`^---\\nui: ${expected}\\ndirect: yes\\n---\\n`));
+  }
+  const s = setupScenario({ contract: false, jev: { intake: directIntake({ ui: 0.6 }) } });
+  const config = JSON.parse(fs.readFileSync(path.join(s.root, ".tenonry/config.json"), "utf8"));
+  config.routing.thresholds.planning.minUi = 0.7;
+  s.setConfig(config);
+  s.cli("intake", s.runId);
+  assert.equal(s.cli("direct-plan", s.runId).ui, "no");
+});
+
+test("direct-plan keeps a clarified brief as written and works without a brief file", () => {
+  const s = setupScenario({ contract: false, jev: { intake: directIntake() } });
+  s.cli("intake", s.runId);
+  assert.equal(s.cli("direct-plan", s.runId).ok, true);
+  assert.ok(fs.readFileSync(`${s.runDir}/plan.md`, "utf8").endsWith(`${DIRECT_INTRO}\n\n# Request\n\nadd loyalty points\n`), "a missing brief falls back to the request");
+  const brief = "# Request\nadd loyalty points\n\n# Clarified requirements\n- Points never expire.\n\n# Assumptions\n- One point per $1.\n";
+  fs.writeFileSync(`${s.runDir}/brief.md`, `${brief}\n\n`);
+  s.cli("direct-plan", s.runId);
+  assert.ok(fs.readFileSync(`${s.runDir}/plan.md`, "utf8").endsWith(`${DIRECT_INTRO}\n\n${brief}`));
+});
+
+test("direct-plan refuses whenever a plan is required and writes nothing", () => {
+  const planned = setupScenario({ contract: false, jev: { intake: BASE_ANSWERS.intake } });
+  assert.deepEqual(planned.cli("direct-plan", planned.runId), { ok: false, reason: "plan_required" }, "the route written by new-run plans");
+  assert.equal(planned.cli("intake", planned.runId).plan, "yes");
+  const refused = planned.cli.raw("direct-plan", planned.runId);
+  assert.equal(refused.status, 0, "a refusal is a result, not an error");
+  assert.deepEqual(refused.json, { ok: false, reason: "plan_required" });
+
+  const file = `${planned.runDir}/route.json`;
+  const { plan, ...older } = JSON.parse(fs.readFileSync(file, "utf8"));
+  assert.equal(plan, "yes");
+  fs.writeFileSync(file, JSON.stringify(older));
+  assert.deepEqual(planned.cli("direct-plan", planned.runId), { ok: false, reason: "plan_required" }, "a route.json from before 0.3.0 plans");
+  fs.rmSync(file);
+  assert.deepEqual(planned.cli("direct-plan", planned.runId), { ok: false, reason: "plan_required" }, "so does a missing route.json");
+  assert.ok(!fs.existsSync(`${planned.runDir}/plan.md`));
+
+  assert.equal(planned.cli.raw("direct-plan", "r-nope").status, 1);
+  assert.equal(planned.cli.raw("direct-plan").status, 1);
 });
 
 test("status displays a mixed run exactly", () => {
