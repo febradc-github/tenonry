@@ -247,3 +247,14 @@ test("final-gate without testFiles templates never reopens", () => {
   assert.deepEqual(result.reopened, []);
   assert.equal(s.run().finalGateReopened, false);
 });
+
+test("F1: a generated file named differently from the contract is still verified and committed", () => {
+  const s = started();
+  s.write("database/migrations/2026_10_07_123456_create_points_table.php");
+  s.write("app/Models/LoyaltyPoint.php");
+  s.flag(true);
+  assert.deepEqual(s.cli("verify", s.runId, "T1").files.sort(), ["app/Models/LoyaltyPoint.php", "database/migrations/2026_10_07_123456_create_points_table.php"]);
+  assert.equal(s.cli("ownership-check", s.runId, "T1").ok, true);
+  s.cli("checkpoint", s.runId, "T1");
+  assert.deepEqual(git(s.root, "show", "--name-only", "--format=", "HEAD").split("\n").sort(), ["app/Models/LoyaltyPoint.php", "database/migrations/2026_10_07_123456_create_points_table.php"]);
+});

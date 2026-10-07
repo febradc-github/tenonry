@@ -320,3 +320,8 @@ Work order: `docs/FIX-0.2.0.md`. Entries start at D-061.
 - Status: Confirmed.
 - Decision: `claude -p "say ok" --output-format json` returns a `permission_denials` array (empty when nothing was denied). The final smoke test asserts it is empty.
 - Source: Live check with Claude Code 2.1.285.
+
+### D-064: Specialists may run framework generators for owned files (F1)
+- Context: The specialist template forbade writing files through shell commands, while the catalog tells the Prisma, Drizzle, SQLAlchemy, Django ORM, and Doctrine specialists to generate migrations with their tools. Rendered prompts contradicted themselves.
+- Decision: The template now forbids only ad hoc shell edits (sed, echo, cp) and allows the project's own generators and migration tools when everything they write is in files the specialist owns. Generated files are read and listed in `filesChanged`; a generator's file name wins over the contract's. The test author lists the conventional name for generator-named files and no contract change is needed when the timestamp differs. No code change was needed: `verify`, `ownership-check`, and `checkpoint` already attribute every changed file the owner may change, and anything written outside owned files is reverted.
+- Reason: Removes the contradiction without weakening single ownership, because enforcement for shell-written files was always the post-task ownership check.

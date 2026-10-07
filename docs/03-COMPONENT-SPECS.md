@@ -350,6 +350,8 @@ On re-init, `routing`, `limits`, `readGuard`, and `outputFilter` are preserved f
 }
 ```
 
+A builder may run the project's own generators and migration tools for files it owns, and a generator may name a file differently from the contract (for example a migration with a different timestamp). That needs no contract change: `verify`, `ownership-check`, and `checkpoint` work from the files that actually changed since the task's baseline and attribute every one the task owner may change, whether or not it is listed in `files`.
+
 ### 4.5 Contract validation (`contract-check`)
 
 Errors (any one makes the contract invalid):

@@ -146,7 +146,7 @@ The `library/` directory is deliberately not named `agents/`, so Claude Code doe
 
 1. `tenonry.mjs next` returns ready tasks (dependencies done) up to `maxParallel`, each with its model chosen by Jev (`docs/04-JEV-ROUTING.md`).
 2. The orchestrator spawns `tenonry-<owner>` with the per-invocation `model`. `next` has already snapshotted the working tree for the task.
-3. The specialist edits only its owned files (the ownership guard enforces it) and writes `reports/<task>.json`.
+3. The specialist edits only its owned files (the ownership guard enforces it) and writes `reports/<task>.json`. It may run the project's own generators and migration tools for files it owns; anything a command writes outside its files is caught by `ownership-check` and reverted.
 4. `tenonry.mjs verify` runs the task's tests, typecheck, and lint through `exec-filter.mjs`. Failure: resume the same specialist with filtered failures. Two failures on a tier: escalate one tier (haiku, sonnet, opus) and respawn fresh. Two failures on opus: task `blocked`, independent tasks continue.
 5. `tenonry.mjs ownership-check` confirms every changed file belongs to the task's owner.
 6. `tenonry.mjs review-plan` asks Jev the risk questions and returns which reviewers run on which model. Design reviewer runs for UI tasks (always opus). The specialist's code reviewer always runs (opus when risky or wide, otherwise sonnet).
