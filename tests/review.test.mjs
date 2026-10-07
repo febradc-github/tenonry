@@ -6,13 +6,18 @@ import { dispatchAnswers, riskAnswers } from "./helpers/jev.mjs";
 
 const SCORES = { ux: 8, visual: 8, content: 8, accessibility: 8, performance: 8, responsive: 8, innovation: 8 };
 
-function reviewing({ risk = riskAnswers(0.1, 0.4), ui = false, config } = {}) {
-  const s = setupScenario({ jev: { dispatch: dispatchAnswers(), risk }, config });
+function reviewing({ risk = riskAnswers(0.1, 0.4), ui = false, config, dispatch = dispatchAnswers(), newScreen = true } = {}) {
+  const s = setupScenario({ jev: { dispatch, risk }, config });
   if (ui) {
     const run = s.run();
     run.tasks.T1.status = "done";
     run.tasks.T2.status = "done";
     fs.writeFileSync(`${s.runDir}/run.json`, JSON.stringify(run));
+    if (!newScreen) {
+      const contract = s.contract();
+      contract.tasks[2].newScreen = false;
+      s.writeContract(contract);
+    }
   }
   s.cli("next", s.runId);
   const task = ui ? "T3" : "T1";
@@ -26,7 +31,7 @@ const codeReview = (task, findings = [], extra = {}) => ({ task, reviewer: "x", 
 const designReview = (task, scores = SCORES, findings = [], extra = {}) => ({ task, reviewer: "tenonry-design-reviewer", round: 1, rendered: true, scores, weighted: 99, verdict: "pass", findings, summary: "ok", ...extra });
 
 test("review-plan: sonnet code reviewer for a low-risk change, with the exact delegation", async () => {
-  const { s, task } = reviewing();
+  const { s, task } = reviewing({ dispatch: dispatchAnswers({ difficulty: 1.2, specified: 0.5 }) });
   const plan = s.cli("review-plan", s.runId, task);
   assert.equal(plan.reviewers.length, 1);
   const [code] = plan.reviewers;
@@ -41,7 +46,102 @@ test("review-plan: sonnet code reviewer for a low-risk change, with the exact de
   const saved = s.run().tasks.T1;
   assert.equal(saved.status, "reviewing");
   assert.deepEqual(saved.reviewRounds, { design: 0, code: 1 });
-  assert.deepEqual(s.log().find((l) => l.kind === "risk").decision, { model: "sonnet", risky: 0.1, blastRadius: 0.4 });
+  assert.deepEqual(s.log().find((l) => l.kind === "risk").decision, { model: "sonnet", risky: 0.1, blastRadius: 0.4, visualChange: null });
+});
+
+test("0.4.0: an easy, contained, low-risk task that passed first time gets a haiku code review", () => {
+  const { s, task } = reviewing();
+  assert.equal(s.run().tasks.T1.difficulty, 0.3, "next records the dispatch difficulty");
+  const plan = s.cli("review-plan", s.runId, task);
+  assert.deepEqual(plan.reviewers.map((r) => [r.agent, r.kind, r.model]), [["tenonry-review-eloquent", "code", "haiku"]]);
+  assert.equal(plan.risk.model, "haiku");
+
+  const boundary = reviewing({ dispatch: dispatchAnswers({ difficulty: 0.6 }), risk: riskAnswers(0.2, 0.5, 0.5) });
+  assert.equal(boundary.s.cli("review-plan", boundary.s.runId, boundary.task).reviewers[0].model, "haiku", "the limits are inclusive");
+});
+
+test("0.4.0: anything short of trivial keeps the sonnet code review", () => {
+  const model = (options) => {
+    const { s, task } = reviewing(options);
+    return s.cli("review-plan", s.runId, task).reviewers[0].model;
+  };
+  assert.equal(model({ dispatch: dispatchAnswers({ difficulty: 0.61, specified: 0.5 }) }), "sonnet", "not an easy task");
+  assert.equal(model({ risk: riskAnswers(0.21, 0.4) }), "sonnet", "some risk");
+  assert.equal(model({ risk: riskAnswers(0.1, 0.51) }), "sonnet", "not contained");
+  assert.equal(model({ risk: riskAnswers(0.1, 0.4, 0.49) }), "sonnet", "Jev is unsure how far the change reaches");
+  assert.equal(model({ risk: riskAnswers(0.5, 0.2) }), "opus", "a risky change is still reviewed on opus, however easy");
+  assert.equal(model({ config: { routing: { thresholds: { codeReviewHaiku: { maxDifficulty: -1 } } } } }), "sonnet", "the knob turns the lighter review off");
+});
+
+test("0.4.0: no haiku review after a failed attempt, in a second round, or when the difficulty is unknown", () => {
+  const failed = setupScenario({ jev: { dispatch: dispatchAnswers(), risk: riskAnswers(0.1, 0.4) } });
+  failed.cli("next", failed.runId);
+  failed.write("app/Models/LoyaltyPoint.php");
+  failed.flag(false);
+  assert.equal(failed.cli("verify", failed.runId, "T1").action, "resume");
+  failed.flag(true);
+  assert.equal(failed.cli("verify", failed.runId, "T1").result, "pass");
+  assert.equal(failed.cli("review-plan", failed.runId, "T1").reviewers[0].model, "sonnet", "the builder needed a second try");
+
+  const { s, task } = reviewing();
+  assert.equal(s.cli("review-plan", s.runId, task).reviewers[0].model, "haiku");
+  s.review(task, "code", codeReview(task, [{ severity: "major", file: "a.php", line: 1, problem: "p", fix: "f" }], { verdict: "fail" }));
+  assert.equal(s.cli("review-status", s.runId, task).action, "fix");
+  assert.equal(s.cli("verify", s.runId, task).result, "pass");
+  assert.equal(s.cli("review-plan", s.runId, task).reviewers[0].model, "sonnet", "a fix round is reviewed on sonnet");
+
+  const unknown = setupScenario({ jev: { risk: riskAnswers(0.1, 0.4), dispatch: undefined } });
+  unknown.cli("next", unknown.runId);
+  assert.equal(unknown.run().tasks.T1.difficulty, null);
+  unknown.write("app/Models/LoyaltyPoint.php");
+  unknown.flag(true);
+  unknown.cli("verify", unknown.runId, "T1");
+  assert.equal(unknown.cli("review-plan", unknown.runId, "T1").reviewers[0].model, "sonnet");
+});
+
+test("0.4.0: a ui task that does not change layout or styling skips the design reviewer", () => {
+  const { s, task } = reviewing({ ui: true, newScreen: false, risk: riskAnswers(0.1, 0.4, 0.9, 0.1), dispatch: dispatchAnswers({ difficulty: 1.2, specified: 0.5 }) });
+  const plan = s.cli("review-plan", s.runId, task);
+  assert.deepEqual(plan.reviewers.map((r) => [r.agent, r.kind, r.model]), [["tenonry-review-vue", "code", "sonnet"]]);
+  assert.match(plan.reviewers[0].delegation, /design_brief: /, "the code reviewer still checks the UI rules");
+  const saved = s.run().tasks[task];
+  assert.equal(saved.visualReview, false);
+  assert.deepEqual(saved.plannedReviews, ["code"]);
+  assert.deepEqual(saved.reviewRounds, { design: 0, code: 1 });
+  assert.deepEqual(saved.notes.filter((n) => n.includes("design review")), ["skipped design review: the change does not alter layout or styling"]);
+  assert.equal(s.log().find((l) => l.kind === "risk").decision.visualChange, 0.1);
+
+  s.review(task, "code", codeReview(task));
+  const status = s.cli("review-status", s.runId, task);
+  assert.deepEqual([status.overall, status.action, status.design], ["pass", "checkpoint", null]);
+  s.cli("checkpoint", s.runId, task);
+  assert.equal(s.run().tasks[task].status, "done");
+  const report = fs.readFileSync(`${s.runDir}/../../../${s.cli("report", s.runId).path}`, "utf8");
+  assert.match(report, /- T3: skipped design review: the change does not alter layout or styling/);
+});
+
+test("0.4.0: the design reviewer still runs for a visual change, a new screen, and without Jev", () => {
+  const kinds = (options, env) => {
+    const { s, task } = reviewing({ ui: true, ...options });
+    if (env) s.cli.env = env;
+    const planned = s.cli("review-plan", s.runId, task).reviewers.map((r) => r.kind);
+    return { planned, saved: s.run().tasks[task] };
+  };
+  assert.deepEqual(kinds({ newScreen: false, risk: riskAnswers(0.1, 0.4, 0.9, 0.5) }).planned, ["code", "design"], "at the threshold");
+  const fresh = kinds({ newScreen: true, risk: riskAnswers(0.1, 0.4, 0.9, 0.0) });
+  assert.deepEqual(fresh.planned, ["code", "design"], "a new screen is always looked at");
+  assert.equal(fresh.saved.visualReview, true);
+  assert.equal(kinds({ newScreen: false, risk: riskAnswers(0.1, 0.4, 0.9, 0.0) }, { TENONRY_JEV_FIXTURE: "", TENONRY_JEV_DISABLE: "1" }).planned.join(), "code,design", "no Jev, no skip");
+  assert.deepEqual(kinds({ newScreen: false, risk: riskAnswers(0.1, 0.4, 0.9, 0.2), config: { routing: { thresholds: { design: { minVisualChange: 0 } } } } }).planned, ["code", "design"], "the knob turns the skip off");
+});
+
+test("0.4.0: the design review decision is made once per task and kept in later rounds", () => {
+  const { s, task } = reviewing({ ui: true, newScreen: false, risk: riskAnswers(0.1, 0.4, 0.9, 0.9) });
+  assert.deepEqual(s.cli("review-plan", s.runId, task).reviewers.map((r) => r.kind), ["code", "design"]);
+  s.cli.env = { TENONRY_JEV_FIXTURE: s.env.TENONRY_JEV_FIXTURE };
+  fs.writeFileSync(s.env.TENONRY_JEV_FIXTURE, JSON.stringify({ dispatch: dispatchAnswers(), risk: riskAnswers(0.1, 0.4, 0.9, 0.0) }));
+  assert.deepEqual(s.cli("review-plan", s.runId, task).reviewers.map((r) => r.kind), ["code", "design"], "a low answer in round two does not drop the reviewer");
+  assert.equal(s.log().filter((l) => l.kind === "risk").at(-1).decision.visualChange, null, "the question is not asked again");
 });
 
 test("review-plan: opus when risky or wide, and opus when Jev is unavailable", () => {
@@ -60,7 +160,7 @@ test("review-plan: ui tasks also get an opus design reviewer with preview detail
   const { s, task } = reviewing({ ui: true });
   const plan = s.cli("review-plan", s.runId, task);
   assert.deepEqual(plan.reviewers.map((r) => [r.agent, r.kind, r.model]), [
-    ["tenonry-review-vue", "code", "sonnet"],
+    ["tenonry-review-vue", "code", "haiku"],
     ["tenonry-design-reviewer", "design", "opus"],
   ]);
   const design = plan.reviewers[1].delegation;

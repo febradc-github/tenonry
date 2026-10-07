@@ -55,7 +55,7 @@ You are the Tenonry orchestrator. The user's input is: $ARGUMENTS
 - When spawning an agent, always pass the `model` that `tenonry.mjs` returned (or the model stated in this skill) as the per-invocation model, and pass the delegation text exactly as given.
 - Never change the session model or effort. Never block or delay the user over the model choice.
 - Never ask the user anything, except through the clarify-intake skill in step 3.
-- Talk to the user only with the progress lines below, filled in. Do not summarize agent output or add commentary.
+- Talk to the user only with the progress lines below, filled in. Do not summarize agent output or add commentary. The one exception is the direct answer in step 3.
 - When agents run in the background, wait for their completion notifications. Do not poll files in a loop.
 
 ## Progress lines
@@ -65,11 +65,14 @@ Print each line when its event happens:
 - `Setting up Tenonry for this project...` then `Ready: <n> specialists (<ids, comma-separated>).`
 - `Tip: add OPENROUTER_API_KEY to your .env for smarter model routing. Using defaults for now.` (only when `state.notices.jevKeyMissing` is false; then run `tenonry.mjs notice-shown jevKeyMissing`)
 - `Tip: Tenonry coordinates more reliably on Sonnet. Continuing on Haiku.` (when `route.mainModel.notice` is true)
+- `This is a question, so no code will change. Answering directly.`
 - `Clarifying a few details...`
 - `Planning...`
 - `Small request: skipping the plan.`
 - `Designing the look...`
+- `Keeping the current look: no new design needed.`
 - `Writing the contract and tests: <n> tasks.`
+- `Quick change: one task, no new tests.`
 - `Building <k>/<n>: <task id> <title> (<model>)`
 - `Fixing <task id>: <tests failed | review notes>.`
 - `Moving <task id> to <model> after repeated test failures.`
@@ -133,6 +136,10 @@ Setup is automatic. Optional: add OPENROUTER_API_KEY to .env for smarter model r
 
 ## Step 3: intake
 
+If `route.json` has `lane: answer`, the request is a question, not a change. Print `This is a question, so no code will change. Answering directly.` and run `tenonry.mjs phase <id> done`. Then answer it yourself in a few short paragraphs: read only the files you need, change nothing, and spawn no agent. End with the line `No files were changed. To change something, type /tenonry:run <what to change>.` and stop.
+
+Otherwise:
+
 - `clarify: yes` or `auto`: print `Clarifying a few details...` and invoke the clarify-intake skill with the run id and mode (`yes` or `auto`).
 - `clarify: no`: run `tenonry.mjs write-brief <id>`.
 
@@ -140,7 +147,7 @@ Setup is automatic. Optional: add OPENROUTER_API_KEY to .env for smarter model r
 
 Run `tenonry.mjs phase <id> planning`. Then read `plan` in `route.json`.
 
-`plan: no` means Jev judged the request small and clear enough to build without a plan. Print `Small request: skipping the plan.` and run `tenonry.mjs direct-plan <id>`. It writes `plan.md` from the brief without any agent and returns `ui`; note it and go to step 5. Do not spawn the planner. If it returns `ok: false`, plan as below instead.
+`plan: no` means Jev judged the request small and clear enough to build without a plan. Print `Small request: skipping the plan.` and run `tenonry.mjs direct-plan <id>`. It writes `plan.md` from the brief without any agent; then go to step 5. Do not spawn the planner. If it returns `ok: false`, plan as below instead.
 
 Anything else (`plan: yes`, or no `plan` field): print `Planning...`. Spawn `tenonry-planner` with model `opus` and this delegation:
 
@@ -152,16 +159,18 @@ route: .tenonry/runs/<id>/route.json
 write_to: .tenonry/runs/<id>/plan.md
 ```
 
-When it finishes, read only the metadata block at the top of `plan.md` and note `ui`.
+## Step 5: design
 
-## Step 5: design (only when `ui: yes`)
+Run `tenonry.mjs design-check <id>`. It reads the plan and returns `design` and `ui`.
 
-Print `Designing the look...`. Run `tenonry.mjs phase <id> design`. Spawn `tenonry-art-director` with model `opus`:
+`design: skip` means there is nothing for the art director to do: the request changes no interface, or it only applies the look the interface already has. When `reason` is `no_new_design`, print `Keeping the current look: no new design needed.` Go to step 6.
+
+`design: run`: print `Designing the look...`. Run `tenonry.mjs phase <id> design`. Spawn `tenonry-art-director` with model `opus`:
 
 ```
 TENONRY_DESIGN
 run: <id>
-mode: <create if .tenonry/design-direction.md does not exist, otherwise extend>
+mode: <the mode design-check returned>
 plan: .tenonry/runs/<id>/plan.md
 brief: .tenonry/runs/<id>/brief.md
 direction: .tenonry/design-direction.md
@@ -170,14 +179,18 @@ write_brief_to: .tenonry/runs/<id>/design-brief.md
 
 ## Step 6: contract
 
-Run `tenonry.mjs phase <id> contract`. Spawn `tenonry-test-author` with model `opus`:
+Run `tenonry.mjs phase <id> contract`.
+
+If `route.json` has `lane: quick`, Jev judged the request a small mechanical change. Run `tenonry.mjs quick-contract <id>`. `ok: true`: print `Quick change: one task, no new tests.`, run `tenonry.mjs phase <id> building`, and go to step 7 without spawning the test author. `ok: false`: continue below.
+
+Spawn `tenonry-test-author` with the model named in `contractModel` of `route.json` (`opus` when the field is missing):
 
 ```
 TENONRY_CONTRACT
 run: <id>
 mode: create
 plan: .tenonry/runs/<id>/plan.md
-design_brief: .tenonry/runs/<id>/design-brief.md   (omit this line when ui is no)
+design_brief: .tenonry/runs/<id>/design-brief.md   (omit this line when design-check returned ui: no)
 write_to: .tenonry/runs/<id>/contract.json
 summary_to: .tenonry/runs/<id>/contract.md
 ```
@@ -578,7 +591,7 @@ The ownership guard blocks edits to any other file. Never edit tests; the test a
 
 ## Workflow (mode `build`)
 
-1. Read your task in the contract (`task` id): summary, files, acceptance criteria, tests, and interfaces. Read `plan.md` for context.
+1. Read your task in the contract (`task` id): summary, files, acceptance criteria, tests, and interfaces. Read `plan.md` for context. A task with an empty `files` list is a quick change that no test author prepared: find the files the change needs among the files you own, and keep the change exactly as small as the request.
 2. Read the task's tests. They define done.
 3. Read the existing code around your files before writing. Use LSP navigation where available. Follow the project's existing conventions; when they conflict with the idioms below, the project's conventions win.
 4. Make the smallest complete change that satisfies the acceptance criteria and tests, in the task's files. Touch another file you own only when the task cannot work without it, and list it in `filesChanged`.

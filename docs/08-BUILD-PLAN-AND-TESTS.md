@@ -159,3 +159,15 @@ One change (decision D-078): Opus builds only complex tasks.
 - Mapping (a wide blast radius stays on sonnet, low confidence lifts haiku only, a complex task stays on opus, the answers logged for the real simple task that reached opus, a sweep showing no path to opus below the difficulty threshold, a stale `opus.minBlastRadius` ignored): `tests/routing.test.mjs`.
 - Re-init drops the retired knob and keeps an edited `opus.minDifficulty`: `tests/init.test.mjs`.
 - Version 0.3.1 and the changelog: `tests/skills.test.mjs` and `tests/init.test.mjs`.
+
+## Revision 0.4.0 tests
+
+Six more decisions handed to Jev (decisions D-080 to D-086).
+
+- Intake mapping (the three lanes and every condition that keeps a request out of the quick lane, the contract model, design yes and no, fallbacks, knobs that switch each shortcut off): `tests/routing.test.mjs`.
+- `route.json` from the hook and from `new-run` plus `intake`: `tests/hook-prompt-router.test.mjs` and `tests/run-commands.test.mjs`.
+- `design-check` (no ui, create and extend modes, the no-new-design brief, never overwriting the art director's brief, an older `route.json`, a missing plan): `tests/run-commands.test.mjs`.
+- `quick-contract` (the contract it writes, the title, one active specialist, every refusal, never replacing a test author's contract): `tests/run-commands.test.mjs`; the contract rule for open files: `tests/contract.test.mjs`; the verify entry for a task without listed files: `tests/verify.test.mjs`.
+- A quick run through the real CLI from intake to undo, and a quick task that hands off to another owner: `tests/pipeline.test.mjs`.
+- Review plan (haiku code review and every condition that keeps it on sonnet, the design review skipped, kept, decided once, and reported): `tests/review.test.mjs`.
+- The run skill's steps 3, 5, and 6, the builder's quick-task sentence, the new thresholds on init and re-init, version 0.4.0, and the changelog: `tests/skills.test.mjs`, `tests/agents-render.test.mjs`, `tests/init.test.mjs`.

@@ -420,3 +420,56 @@ Work order: `docs/FIX-0.2.0.md`. Entries start at D-061.
 - Context: As in D-077, the hard limits in `CLAUDE.md` say never to push, and the developer's request for this revision said to commit and push to `main` directly.
 - Decision: The revision is committed on `main` and pushed to `origin/main`, over SSH as in 0.3.0 because the HTTPS remote has no stored credentials on this machine. The remote configuration is unchanged.
 - Reason: Same as D-077.
+
+## Decisions added for revision 0.4.0
+
+The developer asked which further decisions could be handed to Jev to save tokens, was shown six with their costs, and asked for all six. Two of them (D-083 and D-085) trade away review depth and tests-first, which the architecture ranks above token cost, so they are gated more tightly than the others. Every shortcut falls back to the full pipeline when Jev is unavailable, and each has a threshold that switches it off.
+
+### D-080: The test author runs on Sonnet when the plan was skipped
+- Context: After 0.3.0 a small request skipped the planner but still paid for the test author on Opus. D-076 point 7 had left that unchanged on purpose.
+- Decision: `route.json` gains `contractModel`: `sonnet` when `plan` is `no`, otherwise `opus`; `opus` when Jev is unavailable or the field is missing. The `run` skill passes it as the test author's per-invocation model. This reverses D-076 point 7 at the developer's request.
+- Details the request left open: No new Jev question and no new threshold. The condition is the plan decision itself, so `planning.minNeedsPlan` and `planning.minDifficulty` control both. Fix rounds stay on the same model, because a per-invocation model persists across resumes.
+- Reason: A request small and clear enough to need no plan is also one whose contract is short. `contract-check` still validates the structure whoever wrote it.
+
+### D-081: Jev decides whether new design work is needed
+- Context: Every UI request spawned the art director on Opus, including a changed label or one more field in an existing form.
+- Decision: A sixth intake question, `new_design` (Noul), sets `route.design` to `no` below `design.minNewDesign` (0.5). The new command `tenonry.mjs design-check` decides the design step in code: no UI in the plan, skip; `design: no` and a design direction already exists, skip and write a `design-brief.md` that says to apply the existing look; otherwise run the art director in `create` or `extend` mode. The `run` skill calls it instead of reading the plan's metadata and checking for the direction file itself.
+- Details the request left open:
+  1. Without `.tenonry/design-direction.md` the art director always runs. Builders and reviewers are told to use only the direction's tokens, so skipping it on a project's first UI run would leave them nothing to follow.
+  2. A code-written brief instead of no brief, for the same reason as D-076 point 3: every later delegation already names the file. Its screens are `product` profile, because a missing profile is scored as `showcase`, the stricter weighting, which would be wrong for a change that designs nothing.
+  3. `design-check` never overwrites a brief the art director wrote (`already_designed`), which also stops a resumed run from spawning the art director a second time.
+- Reason: The art director's value is deciding a look. When nothing new is decided, its output restates the direction.
+
+### D-082: Jev decides whether a UI task needs the visual review
+- Context: Every `ui` task got the design reviewer: Opus, a browser, screenshots at three widths, up to three rounds. It is the most expensive loop in the pipeline, and it ran for changes that cannot alter what the page looks like.
+- Decision: For a `ui` task that is not a new screen, the risk question set gains `visual_change` (Noul). Below `design.minVisualChange` (0.5) the design reviewer is not planned and the task gets the note `skipped design review: the change does not alter layout or styling`, which the report lists under skipped steps.
+- Details the request left open: A new screen is always reviewed and the question is not asked. Jev unavailable means the review runs. The decision is made in the task's first review round and stored as `visualReview`, so a later round cannot drop a reviewer that already ran or add one mid-task; the question is not asked again. The code reviewer still receives the design lines and checks UI rules U1 to U5 on a skipped task.
+- Reason: Jev sees the diff here, not just the request, so it judges the actual change.
+
+### D-083: A trivial, safe task is code-reviewed on Haiku, not skipped
+- Context: The proposal was "Haiku review, or none" for trivial tasks, with the stated cost that it weakens "every change is reviewed".
+- Decision: Haiku, never none. The code reviewer runs on `haiku` when the task's dispatch difficulty is at or below `codeReviewHaiku.maxDifficulty` (0.6), it passed verification on its only attempt, this is its first code review round, and Jev's risk answers are `risky <= 0.2` and `blast_radius <= 0.5` with confidence at or above `roundUpIfConfidenceBelow`. `next` now records the dispatch difficulty on the task for this.
+- Details the request left open: A fix round, a second attempt, an escalated task, and a task whose difficulty is unknown (Jev fallback at dispatch) all stay on Sonnet or higher. Risky or wide changes go to Opus first, whatever the difficulty. Verified against the live docs before relying on it: the reviewer's `effort: high` is not a problem on Haiku, because Claude Code falls back to the highest level a model supports (https://code.claude.com/docs/en/model-config.md, read 2026-10-08).
+- Reason: Keeping the review and lowering its model saves most of the cost without giving up design goal 2, that builders never judge their own work.
+
+### D-084: A question is answered directly
+- Context: Jev already classified every request (`task_type`), including `investigation`, and nothing used the answer. A question went through planning, a contract, and a build that had nothing to build.
+- Decision: `route.lane` is `answer` when `task_type` is `investigation` with confidence at or above `answer.minConfidence` (0.7). The `run` skill then answers in the main session, changes no file, spawns no agent, sets the run to `done`, and ends with a fixed line saying no files were changed and how to ask for a change.
+- Details the request left open: The threshold is higher than the 0.5 used elsewhere, because the wrong call here does nothing the user asked for. The fixed last line makes a wrong call visible and cheap to correct. The answer comes from the main session rather than an agent, so it costs one turn on whatever model the user is already running.
+- Reason: The cheapest pipeline run is the one that does not start.
+
+### D-085: A small mechanical change is built as one task without the test author
+- Context: The proposal's stated cost was that no tests are written first, the plugin's first design goal. The developer asked for it anyway.
+- Decision: `route.lane` is `quick` only when all of these hold: `task_type` is `mechanical` with confidence at or above `quick.minConfidence` (0.7), `plan` is `no`, `clarify` is `no`, `difficulty.score <= quick.maxDifficulty` (0.5), `difficulty.confidence >= roundUpIfConfidenceBelow`, and `ui.noul < planning.minUi`. The new command `tenonry.mjs quick-contract` then writes a one-task contract in code and the test author is not spawned. The owner is the only active specialist, or Jev's choice among them (a fifth question set, kind `quick`). The task lists no files; the builder finds them among the files it owns.
+- Details the request left open:
+  1. What still protects the change: the ownership guard, typecheck and lint in `verify`, the code review, and the project's whole existing test suite at the final gate.
+  2. Interface changes are excluded, so a quick task is never `ui`. They keep their tests, their brief, and their reviews.
+  3. Any doubt hands back to the test author: Jev unsure of the owner, Jev unavailable, an invalid contract, or a contract that already exists all return `ok: false`, and a test author's contract is never replaced.
+  4. An empty `files` list is valid only in a contract marked `quick: true`. `verify` picks its entry from the files actually changed. A change that needs another owner's file uses the existing `needs_owner` handoff.
+  5. The task title, which becomes the commit subject, is the first line of the request cut at a word boundary to 72 characters.
+- Reason: For a rename or a config value, a test written first mostly restates the request, and the existing suite is the better check that nothing else broke. The gate is deliberately narrow so that anything with behavior to specify still gets its tests first.
+
+### D-086: Housekeeping for 0.4.0
+- Context: Version, documents, and the place of the new code.
+- Decision: Version 0.4.0 in `plugin.json`, `marketplace.json`, `package.json`, and the docs/03 examples. `direct-plan` moved from `commands.mjs` into the new `scripts/lib/direct.mjs` together with `design-check` and `quick-contract`: the three stand-ins that code writes when an agent is skipped. Four threshold groups were added (`design`, `answer`, `quick`, `codeReviewHaiku`); re-init adds them to an existing `config.json`. The revision was committed on `main` and pushed to `origin/main` on the developer's instruction, over SSH as before (see D-077).
+- Reason: One version everywhere, and one module for one idea.

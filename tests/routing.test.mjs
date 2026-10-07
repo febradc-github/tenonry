@@ -4,10 +4,10 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   TIERS, applyFloor, nextTier, mapIntake, fallbackIntake, mapDispatch, fallbackDispatch, mapOwner, mapRisk, fallbackRisk,
-  currentModelFamily, runIntake, readRoute, ownerQuestions,
+  currentModelFamily, runIntake, readRoute, ownerQuestions, riskQuestions, needsVisualReview, quickOwnerQuestions, intakeQuestions,
 } from "../scripts/lib/routing.mjs";
 import { DEFAULT_ROUTING } from "../scripts/lib/config.mjs";
-import { BASE_ANSWERS, directIntake, dispatchAnswers, riskAnswers, writeFixture } from "./helpers/jev.mjs";
+import { BASE_ANSWERS, directIntake, quickIntake, answerIntake, dispatchAnswers, riskAnswers, writeFixture } from "./helpers/jev.mjs";
 import { makeProject } from "./helpers/project.mjs";
 import { newRun } from "../scripts/lib/state.mjs";
 
@@ -33,7 +33,7 @@ test("intake: clarify yes at or above the ambiguity threshold, no below", () => 
 test("intake maps difficulty, task type, and ui", () => {
   const mapped = mapIntake(BASE_ANSWERS.intake, thresholds, "opus");
   assert.deepEqual(mapped, {
-    jev: "ok", fallbackReason: null, clarify: "no", plan: "yes", difficulty: 1.1, difficultyConfidence: 0.85, taskType: "feature", ui: 0.9,
+    jev: "ok", fallbackReason: null, clarify: "no", plan: "yes", lane: "build", contractModel: "opus", design: "yes", difficulty: 1.1, difficultyConfidence: 0.85, taskType: "feature", ui: 0.9,
     mainModel: { current: "opus", notice: false },
   });
 });
@@ -70,6 +70,83 @@ test("intake fallback always plans, whatever the reason", () => {
   for (const reason of ["disabled", "no_key", "timeout", "http_500", "network", "invalid_response"]) assert.equal(fallbackIntake(reason, "sonnet").plan, "yes", reason);
 });
 
+test("0.4.0: the contract is written on sonnet exactly when the plan is skipped", () => {
+  assert.equal(mapIntake(directIntake(), thresholds, "sonnet").contractModel, "sonnet");
+  assert.equal(mapIntake(directIntake({ needsPlan: 0.5 }), thresholds, "sonnet").contractModel, "opus");
+  assert.equal(mapIntake(directIntake({ difficulty: 2.0 }), thresholds, "sonnet").contractModel, "opus");
+  assert.equal(fallbackIntake("no_key", "sonnet").contractModel, "opus");
+});
+
+test("0.4.0: design is no only when Jev says nothing new has to be designed", () => {
+  const design = (newDesign) => mapIntake(directIntake({ newDesign }), thresholds, "sonnet").design;
+  assert.equal(design(0.1), "no");
+  assert.equal(design(0.49), "no");
+  assert.equal(design(0.5), "yes");
+  assert.equal(fallbackIntake("timeout", "sonnet").design, "yes");
+  const never = { ...thresholds, design: { ...thresholds.design, minNewDesign: 0 } };
+  assert.equal(mapIntake(directIntake({ newDesign: 0 }), never, "sonnet").design, "yes", "the knob turns the skip off");
+});
+
+test("0.4.0: a confident investigation is answered directly; anything else is built", () => {
+  assert.equal(mapIntake(answerIntake(), thresholds, "sonnet").lane, "answer");
+  assert.equal(mapIntake(answerIntake({ typeConfidence: 0.7 }), thresholds, "sonnet").lane, "answer");
+  assert.equal(mapIntake(answerIntake({ typeConfidence: 0.69 }), thresholds, "sonnet").lane, "build");
+  assert.equal(mapIntake(BASE_ANSWERS.intake, thresholds, "sonnet").lane, "build");
+  assert.equal(fallbackIntake("no_key", "sonnet").lane, "build");
+});
+
+test("0.4.0: the quick lane needs a confident, easy, clear, non-ui mechanical change with no plan", () => {
+  const lane = (options) => mapIntake(quickIntake(options), thresholds, "sonnet").lane;
+  assert.equal(lane(), "quick");
+  assert.equal(lane({ typeConfidence: 0.7, difficulty: 0.5, difficultyConfidence: 0.5, ui: 0.49, needsPlan: 0.49, ambiguity: 0.59 }), "quick", "every limit is inclusive on the safe side");
+  assert.equal(lane({ type: "bugfix" }), "build", "only mechanical work");
+  assert.equal(lane({ type: "feature" }), "build");
+  assert.equal(lane({ typeConfidence: 0.69 }), "build", "Jev is not sure it is mechanical");
+  assert.equal(lane({ difficulty: 0.51 }), "build", "not easy enough");
+  assert.equal(lane({ difficultyConfidence: 0.49 }), "build", "Jev is not sure it is easy");
+  assert.equal(lane({ ui: 0.5 }), "build", "interface changes keep their tests and design checks");
+  assert.equal(lane({ needsPlan: 0.5 }), "build", "a planned request is never quick");
+  assert.equal(lane({ ambiguity: 0.6 }), "build", "an unclear request is never quick");
+  const off = { ...thresholds, quick: { ...thresholds.quick, maxDifficulty: -1 } };
+  assert.equal(mapIntake(quickIntake(), off, "sonnet").lane, "build", "the knob turns the lane off");
+});
+
+test("0.4.0: the visual_change question is asked only when a design review is still undecided", () => {
+  assert.deepEqual(Object.keys(riskQuestions()), ["risky", "blast_radius"]);
+  assert.deepEqual(Object.keys(riskQuestions({ visual: true })), ["visual_change", "risky", "blast_radius"]);
+  assert.equal(mapRisk(BASE_ANSWERS.risk, thresholds).visualChange, null, "an answer that was not asked for is ignored");
+  assert.equal(mapRisk(BASE_ANSWERS.risk, thresholds, { visual: true }).visualChange, 0.9);
+  assert.equal(fallbackRisk().visualChange, null);
+});
+
+test("0.4.0: needsVisualReview is true for a new screen, without an answer, and at the threshold", () => {
+  const decision = (visualChange) => ({ visualChange });
+  assert.equal(needsVisualReview(decision(0.49), thresholds), false);
+  assert.equal(needsVisualReview(decision(0.5), thresholds), true);
+  assert.equal(needsVisualReview(decision(null), thresholds), true);
+  assert.equal(needsVisualReview(decision(0), thresholds, { newScreen: true }), true);
+});
+
+test("0.4.0: code review model: haiku only for a trivial, safe change", () => {
+  const model = (risky, blast, confidence, trivial) => mapRisk(riskAnswers(risky, blast, confidence), thresholds, { trivial }).model;
+  assert.equal(model(0.1, 0.4, 0.9, true), "haiku");
+  assert.equal(model(0.2, 0.5, 0.5, true), "haiku");
+  assert.equal(model(0.1, 0.4, 0.9, false), "sonnet");
+  assert.equal(model(0.21, 0.4, 0.9, true), "sonnet");
+  assert.equal(model(0.1, 0.51, 0.9, true), "sonnet");
+  assert.equal(model(0.1, 0.4, 0.49, true), "sonnet");
+  assert.equal(model(0.5, 0.1, 0.9, true), "opus");
+  assert.equal(model(0.1, 1.5, 0.9, true), "opus");
+});
+
+test("0.4.0: the quick owner question lists every candidate like the owner question", () => {
+  const candidates = [{ agent: "tenonry-x", title: "X specialist", owns: ["a", "b"] }, { agent: "tenonry-y", title: "Y specialist", owns: ["c"] }];
+  const { owner } = quickOwnerQuestions(candidates);
+  assert.equal(owner.type, "choice");
+  assert.deepEqual(owner.criteria, { "tenonry-x": "X specialist. Owns: a, b", "tenonry-y": "Y specialist. Owns: c" });
+  assert.deepEqual(Object.keys(intakeQuestions()), ["ambiguity", "difficulty", "needs_plan", "task_type", "ui", "new_design"]);
+});
+
 test("the Haiku notice is on for haiku and off for sonnet, opus, fable, and unknown", () => {
   for (const [family, notice] of [["haiku", true], ["sonnet", false], ["opus", false], ["fable", false], ["unknown", false]]) {
     assert.equal(mapIntake(BASE_ANSWERS.intake, thresholds, family).mainModel.notice, notice, family);
@@ -79,7 +156,7 @@ test("the Haiku notice is on for haiku and off for sonnet, opus, fable, and unkn
 
 test("intake fallback asks the clarify skill to decide", () => {
   assert.deepEqual(fallbackIntake("timeout", "sonnet"), {
-    jev: "fallback", fallbackReason: "timeout", clarify: "auto", plan: "yes", difficulty: null, difficultyConfidence: null, taskType: null, ui: null,
+    jev: "fallback", fallbackReason: "timeout", clarify: "auto", plan: "yes", lane: "build", contractModel: "opus", design: "yes", difficulty: null, difficultyConfidence: null, taskType: null, ui: null,
     mainModel: { current: "sonnet", notice: false },
   });
 });
@@ -131,7 +208,7 @@ test("0.3.1: low confidence lifts haiku to sonnet and never lifts sonnet to opus
 test("0.3.1: the simple task that reached opus in a real run now gets sonnet", () => {
   // Logged answers for "create one small formatting module": easy, but Jev was unsure about the blast radius.
   const logged = dispatchAnswers({ difficulty: 0.52, difficultyConfidence: 0.52, specified: 0.9, blast: 0.67, blastConfidence: 0.34 });
-  assert.deepEqual(mapDispatch(logged, thresholds, "haiku"), { model: "sonnet", reason: "jev difficulty=0.52(c0.52) specified=0.90 blast=0.67(c0.34) -> sonnet" });
+  assert.deepEqual(mapDispatch(logged, thresholds, "haiku"), { model: "sonnet", reason: "jev difficulty=0.52(c0.52) specified=0.90 blast=0.67(c0.34) -> sonnet", difficulty: 0.52 });
 });
 
 test("0.3.1: every path to opus needs a complex task", () => {
@@ -155,8 +232,8 @@ test("model floors apply after rounding", () => {
 });
 
 test("dispatch fallback is sonnet with the floor applied", () => {
-  assert.deepEqual(fallbackDispatch("timeout", "haiku"), { model: "sonnet", reason: "fallback timeout -> sonnet" });
-  assert.deepEqual(fallbackDispatch("no_key", "opus"), { model: "opus", reason: "fallback no_key -> opus" });
+  assert.deepEqual(fallbackDispatch("timeout", "haiku"), { model: "sonnet", reason: "fallback timeout -> sonnet", difficulty: null });
+  assert.deepEqual(fallbackDispatch("no_key", "opus"), { model: "opus", reason: "fallback no_key -> opus", difficulty: null });
 });
 
 test("owner is accepted at or above the minimum confidence", () => {

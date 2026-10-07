@@ -92,10 +92,12 @@ export async function next(root, runId) {
   const baseline = candidates.length > 0 ? git.snapshot(root) : null;
   const ready = [];
   for (const def of candidates) {
-    const { model, reason } = await chooseModel(ctx, def);
+    const { model, reason, difficulty } = await chooseModel(ctx, def);
     const task = tasks[def.id];
     task.status = "running";
     task.tier = model;
+    // Kept for review-plan: an easy task may get a lighter code review (docs/03 section 6.4).
+    if (difficulty !== undefined) task.difficulty = difficulty;
     task.attempts.push({ model, startedAt: new Date().toISOString() });
     task.baseline = baseline;
     ready.push({ task: def.id, title: def.title, agent: def.owner, model, reason, delegation: buildMessage(runId, def) });

@@ -76,7 +76,8 @@ export function validateContract(root, runId, contract, { config = loadConfig(ro
       errors.push(`${label}: owner ${task.owner} is not an active builder specialist`);
     }
     const files = Array.isArray(task.files) ? task.files : [];
-    if (files.length === 0) errors.push(`${label}: files must not be empty`);
+    // A quick contract is written by code before anyone has read the project, so its one task leaves the files to the builder.
+    if (files.length === 0 && contract.quick !== true) errors.push(`${label}: files must not be empty`);
     for (const file of files) {
       if (!isSafeRelativePath(file)) {
         errors.push(`${label}: ${JSON.stringify(file)} is not a normalized relative path inside the project`);

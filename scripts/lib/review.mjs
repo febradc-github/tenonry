@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import { loadContext, taskDefinition, runTask, reviewPath, specialistId } from "./ctx.mjs";
 import { decideWithJev } from "./jev.mjs";
-import { riskQuestions, mapRisk, fallbackRisk } from "./routing.mjs";
+import { riskQuestions, mapRisk, fallbackRisk, needsVisualReview } from "./routing.mjs";
 import { reviewMessage, fixMessage } from "./delegation.mjs";
 import { readJson } from "./json.mjs";
 import * as git from "./git.mjs";
@@ -54,6 +54,12 @@ function designSchemaOk(review) {
   return typeof scores === "object" && scores !== null && CRITERIA.every((key) => typeof scores[key] === "number" && scores[key] >= 0 && scores[key] <= 10);
 }
 
+// An easy task that passed its checks on the first attempt, in its first code review round (docs/03 section 6.4).
+function isTrivial(task, thresholds) {
+  const easy = typeof task.difficulty === "number" && task.difficulty <= thresholds.codeReviewHaiku.maxDifficulty;
+  return easy && task.reviewRounds.code === 0 && task.attempts.length === 1 && task.failuresOnTier === 0;
+}
+
 export async function reviewPlan(root, runId, taskId) {
   const ctx = loadContext(root, runId, { contract: true });
   const def = taskDefinition(ctx, taskId);
@@ -62,6 +68,12 @@ export async function reviewPlan(root, runId, taskId) {
   const files = task.changedFiles;
 
   const thresholds = ctx.config.routing.thresholds;
+  const designAvailable = def.ui === true && ctx.config.agents.includes(DESIGN_REVIEWER);
+  // Whether the design reviewer runs is decided in the task's first round and kept, so a later round cannot flip it.
+  const undecided = designAvailable && task.visualReview === undefined;
+  const newScreen = def.newScreen === true;
+  const visual = undecided && !newScreen;
+  const trivial = isTrivial(task, thresholds);
   const risk = await decideWithJev({
     root,
     kind: "risk",
@@ -73,8 +85,8 @@ export async function reviewPlan(root, runId, taskId) {
       diffStat: git.diffStat(root, files),
       diffExcerpt: git.diffExcerpt(root, files),
     },
-    questions: riskQuestions(),
-    map: (answers) => mapRisk(answers, thresholds),
+    questions: riskQuestions({ visual }),
+    map: (answers) => mapRisk(answers, thresholds, { trivial, visual }),
     fallback: () => fallbackRisk(),
     timeoutMs: ctx.config.routing.timeoutMs,
   });
@@ -94,8 +106,12 @@ export async function reviewPlan(root, runId, taskId) {
       delegation: reviewMessage({ runId, task: def, kind, round: task.reviewRounds[kind], files, preview, login }),
     });
   };
+  if (undecided) {
+    task.visualReview = needsVisualReview(risk.decision, thresholds, { newScreen });
+    if (!task.visualReview) task.notes.push("skipped design review: the change does not alter layout or styling");
+  }
   plan(`tenonry-review-${specialistId(def.owner)}`, "code", risk.decision.model);
-  if (def.ui === true && ctx.config.agents.includes(DESIGN_REVIEWER)) plan(DESIGN_REVIEWER, "design", "opus");
+  if (designAvailable && task.visualReview) plan(DESIGN_REVIEWER, "design", "opus");
 
   task.plannedReviews = planned;
   ctx.save();

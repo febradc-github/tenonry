@@ -176,3 +176,10 @@ test("0.3.0: the test author knows a direct plan is the brief, not a planner's p
     assert.ok(text.includes("Derive the acceptance criteria from the brief yourself, as observable behaviors, record them in each task's `acceptance`, and keep the contract as small as the request, often a single task. Do not widen the scope."));
   }
 });
+
+test("0.4.0: builders are told what a task without files is", () => {
+  const sentence = "A task with an empty `files` list is a quick change that no test author prepared: find the files the change needs among the files you own, and keep the change exactly as small as the request.";
+  const agents = render([{ root: ".", specialists: ["laravel", "vue"] }]);
+  for (const name of ["tenonry-laravel", "tenonry-vue"]) assert.ok(agents.get(name).includes(sentence), name);
+  assert.ok(!agents.get("tenonry-review-laravel").includes(sentence));
+});

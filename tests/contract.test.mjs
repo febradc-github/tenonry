@@ -132,3 +132,12 @@ test("run-scoped owner rules count when checking ownership", () => {
   s.writeContract(contract);
   assert.equal(s.cli("contract-check", s.runId).valid, true);
 });
+
+test("0.4.0: only a quick contract may leave a task's files open", () => {
+  const { result } = withContract((c) => { c.quick = true; c.tasks[0].files = []; });
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.valid, true);
+  assertInvalid((c) => { c.quick = false; c.tasks[0].files = []; }, /files must not be empty/);
+  assertInvalid((c) => { c.quick = "true"; c.tasks[0].files = []; }, /files must not be empty/);
+  assertInvalid((c) => { c.quick = true; c.tasks[0].files = ["resources/js/Pages/Loyalty.vue"]; c.tasks[2].files = ["resources/js/Pages/Other.vue"]; }, /is owned by tenonry-vue, not tenonry-eloquent/);
+});

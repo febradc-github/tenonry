@@ -15,7 +15,7 @@ import { undo } from "./undo.mjs";
 import { previewStart, previewStop, previewCredentials } from "./preview.mjs";
 import { loadRun } from "./state.mjs";
 import { runDir } from "./paths.mjs";
-import { loadConfig } from "./config.mjs";
+import { directPlan, designCheck, quickContract, requestBrief } from "./direct.mjs";
 
 function need(value, name) {
   if (value === undefined || value === "") throw new CliError(`missing_argument: ${name}`);
@@ -47,10 +47,6 @@ function promptFrom(flags) {
 }
 
 const relPath = (root, file) => path.relative(root, file).split(path.sep).join("/");
-const requestBrief = (root, runId, run) => `# Request\n\n${readRoute(root, runId)?.prompt ?? run.prompt}\n`;
-
-const DIRECT_PLAN_INTRO =
-  "No planner ran for this request. Jev judged it small and clear enough to build without a separate plan, so the brief below is the whole specification. Build exactly what it asks, completely, and nothing more.";
 
 function newRunCommand({ root, flags }) {
   const prompt = promptFrom(flags);
@@ -64,6 +60,9 @@ function newRunCommand({ root, flags }) {
     answers: {},
     clarify: "auto",
     plan: "yes",
+    lane: "build",
+    contractModel: "opus",
+    design: "yes",
     difficulty: null,
     difficultyConfidence: null,
     taskType: null,
@@ -91,26 +90,6 @@ function writeBrief({ root, args, flags }) {
   return { path: relPath(root, file) };
 }
 
-// Stands in for the planner on a run that Jev routed past planning: plan.md carries the brief as written (docs/03 section 6).
-function directPlan({ root, args }) {
-  const runId = need(args[0], "run");
-  const run = loadRun(root, runId);
-  if (!run) throw new CliError(`run_not_found: ${runId}`);
-  const route = readRoute(root, runId);
-  if (route?.plan !== "no") return { ok: false, reason: "plan_required" };
-  const dir = runDir(root, runId);
-  let brief;
-  try {
-    brief = fs.readFileSync(path.join(dir, "brief.md"), "utf8");
-  } catch {
-    brief = requestBrief(root, runId, run);
-  }
-  const ui = route.ui >= loadConfig(root).routing.thresholds.planning.minUi ? "yes" : "no";
-  const file = path.join(dir, "plan.md");
-  fs.writeFileSync(file, `---\nui: ${ui}\ndirect: yes\n---\n# Direct run\n\n${DIRECT_PLAN_INTRO}\n\n${brief.replace(/(\r?\n)+$/, "")}\n`);
-  return { path: relPath(root, file), ui };
-}
-
 async function intakeCommand({ root, args }) {
   const runId = need(args[0], "run");
   const run = loadRun(root, runId);
@@ -126,7 +105,9 @@ export const COMMANDS = {
   "catalog-check": { run: catalogCheck, needsProject: false },
   "new-run": { run: newRunCommand },
   "write-brief": { run: writeBrief },
-  "direct-plan": { run: directPlan },
+  "direct-plan": { run: ({ root, args }) => directPlan(root, need(args[0], "run")) },
+  "design-check": { run: ({ root, args }) => designCheck(root, need(args[0], "run")) },
+  "quick-contract": { run: ({ root, args }) => quickContract(root, need(args[0], "run")) },
   intake: { run: intakeCommand },
   status: { run: ({ root, args }) => status(root, args[0]) },
   undo: { run: ({ root, args }) => undo(root, args[0]) },

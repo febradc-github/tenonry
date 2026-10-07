@@ -187,3 +187,20 @@ test("FLAG path is gitignored so it never shows up as a change", () => {
   assert.equal(FLAG.startsWith(".tenonry/logs/"), true);
   assert.deepEqual(s.cli("verify", s.runId, "T1").files, []);
 });
+
+test("0.4.0: a task without listed files picks its verify entry from the files it changed", async () => {
+  const { selectVerifyEntry } = await import("../scripts/lib/verify.mjs");
+  const config = {
+    verify: [
+      { root: "apps/web", ecosystem: "js", test: "w", testFiles: null, typecheck: null, lint: null },
+      { root: "apps/api", ecosystem: "js", test: "a", testFiles: null, typecheck: null, lint: null },
+    ],
+  };
+  const quick = { id: "T1", files: [], tests: [] };
+  assert.equal(selectVerifyEntry(config, quick, ["apps/api/src/app.module.ts"]).root, "apps/api");
+  assert.equal(selectVerifyEntry(config, quick, ["apps/web/app/page.tsx"]).root, "apps/web");
+  assert.equal(selectVerifyEntry(config, quick, []), null, "nothing changed and no root entry: nothing to run");
+  assert.equal(selectVerifyEntry(config, { id: "T2", files: ["apps/web/a.ts"], tests: [] }, ["apps/api/b.ts"]).root, "apps/web", "listed files still win");
+  const rootOnly = { verify: [{ root: ".", ecosystem: "php", test: "t", testFiles: null, typecheck: null, lint: null }] };
+  assert.equal(selectVerifyEntry(rootOnly, quick, []).root, ".");
+});

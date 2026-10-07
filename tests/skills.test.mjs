@@ -75,13 +75,13 @@ test("every agent mentioned in delegations exists in the library", () => {
 test("the plugin manifests carry the documented metadata", () => {
   const plugin = JSON.parse(read(".claude-plugin", "plugin.json"));
   assert.equal(plugin.name, "tenonry");
-  assert.equal(plugin.version, "0.3.1");
+  assert.equal(plugin.version, "0.4.0");
   assert.deepEqual(plugin.author, { name: "Dan Christian Febra" });
   assert.equal(plugin.license, undefined);
   assert.equal(plugin.repository, undefined);
   const market = JSON.parse(read(".claude-plugin", "marketplace.json"));
   assert.equal(market.name, "tenonry-local");
-  assert.deepEqual(market.plugins[0], { name: "tenonry", source: "./", description: "Specialist multi-agent pipeline with Jev routing.", version: "0.3.1" });
+  assert.deepEqual(market.plugins[0], { name: "tenonry", source: "./", description: "Specialist multi-agent pipeline with Jev routing.", version: "0.4.0" });
 });
 
 test("the user README follows the required order and says the license is not chosen", () => {
@@ -130,7 +130,7 @@ test("F12: the README changelog lists the eleven 0.2.0 changes and the automatic
 
 test("F12: every manifest and the dev package agree on the version", () => {
   const version = JSON.parse(read(".claude-plugin", "plugin.json")).version;
-  assert.equal(version, "0.3.1");
+  assert.equal(version, "0.4.0");
   assert.equal(JSON.parse(read(".claude-plugin", "marketplace.json")).plugins[0].version, version);
   assert.equal(JSON.parse(read("package.json")).version, version);
 });
@@ -162,7 +162,7 @@ test("0.3.0: the README changelog and the routing section say when the plan is s
   assert.equal(section.split("\n").filter((line) => line.startsWith("- ")).length, 1);
   assert.match(section, /Jev decides whether a request needs a plan/);
   assert.match(section, /re-renders that project's agents/);
-  assert.match(readme, /Without a key everything still works: every request is planned/);
+  assert.match(readme, /Without a key everything still works and nothing is skipped: every request is planned/);
 });
 
 test("0.3.1: the README changelog says simple tasks no longer reach Opus", () => {
@@ -171,5 +171,48 @@ test("0.3.1: the README changelog says simple tasks no longer reach Opus", () =>
   assert.ok(readme.indexOf("### 0.3.1") > readme.indexOf("## Changelog"));
   assert.equal(section.split("\n").filter((line) => line.startsWith("- ")).length, 1);
   assert.match(section, /Opus builds only complex tasks/);
+  assert.match(section, /re-renders that project's agents/);
+});
+
+const stepOf = (skill, from, to) => new RegExp(`## Step ${from}[^\\n]*\\n\\n([\\s\\S]*?)\\n\\n## Step ${to}`).exec(skill)[1];
+
+test("0.4.0: the run skill answers a question directly and closes the run", () => {
+  const skill = read("skills", "run", "SKILL.md");
+  const [answer, otherwise] = stepOf(skill, 3, 4).split("\n\n");
+  assert.match(answer, /^If `route\.json` has `lane: answer`, the request is a question, not a change\./);
+  assert.ok(answer.includes("Print `This is a question, so no code will change. Answering directly.` and run `tenonry.mjs phase <id> done`."));
+  assert.ok(answer.includes("change nothing, and spawn no agent"));
+  assert.ok(answer.includes("End with the line `No files were changed. To change something, type /tenonry:run <what to change>.` and stop."));
+  assert.equal(otherwise, "Otherwise:");
+  assert.ok(skill.includes("Do not summarize agent output or add commentary. The one exception is the direct answer in step 3."));
+});
+
+test("0.4.0: the run skill lets design-check decide the design step", () => {
+  const skill = read("skills", "run", "SKILL.md");
+  assert.ok(skill.includes("\n## Step 5: design\n"));
+  const [check, skip, run] = stepOf(skill, 5, 6).split("\n\n");
+  assert.equal(check, "Run `tenonry.mjs design-check <id>`. It reads the plan and returns `design` and `ui`.");
+  assert.match(skip, /^`design: skip` means there is nothing for the art director to do/);
+  assert.ok(skip.includes("When `reason` is `no_new_design`, print `Keeping the current look: no new design needed.` Go to step 6."));
+  assert.match(run, /^`design: run`: print `Designing the look\.\.\.`\. Run `tenonry\.mjs phase <id> design`\. Spawn `tenonry-art-director` with model `opus`:$/);
+  assert.ok(skill.includes("mode: <the mode design-check returned>"));
+  assert.ok(!skill.includes("note `ui`"), "the orchestrator no longer reads the plan's metadata itself");
+});
+
+test("0.4.0: the run skill tries the quick contract first and routes the test author's model", () => {
+  const skill = read("skills", "run", "SKILL.md");
+  const [phase, quick, author] = stepOf(skill, 6, 7).split("\n\n");
+  assert.equal(phase, "Run `tenonry.mjs phase <id> contract`.");
+  assert.match(quick, /^If `route\.json` has `lane: quick`, Jev judged the request a small mechanical change\. Run `tenonry\.mjs quick-contract <id>`\./);
+  assert.ok(quick.includes("`ok: true`: print `Quick change: one task, no new tests.`, run `tenonry.mjs phase <id> building`, and go to step 7 without spawning the test author."));
+  assert.ok(quick.includes("`ok: false`: continue below."));
+  assert.equal(author, "Spawn `tenonry-test-author` with the model named in `contractModel` of `route.json` (`opus` when the field is missing):");
+});
+
+test("0.4.0: the README changelog lists the six decisions handed to Jev", () => {
+  const readme = read("README.md");
+  const section = readme.slice(readme.indexOf("### 0.4.0"), readme.indexOf("### 0.3.1"));
+  assert.ok(readme.indexOf("### 0.4.0") > readme.indexOf("## Changelog"));
+  assert.equal(section.split("\n").filter((line) => line.startsWith("- ")).length, 6);
   assert.match(section, /re-renders that project's agents/);
 });

@@ -31,13 +31,15 @@ function ecosystemsFor(file) {
 export const packageDir = (root, pkgRoot) => (pkgRoot === "." ? root : path.join(root, pkgRoot));
 
 // Docs/03 section 6.2 step 2 plus decision D-048: longest matching root, then the matching ecosystem.
-export function selectVerifyEntry(config, def) {
-  const first = def.files[0] ?? "";
+export function selectVerifyEntry(config, def, changedFiles = []) {
+  // A quick task lists no files, so the files it actually changed stand in.
+  const files = def.files.length > 0 ? def.files : changedFiles;
+  const first = files[0] ?? "";
   const roots = [...new Set(config.verify.map((entry) => entry.root))].filter((r) => r === "." || first === r || first.startsWith(`${r}/`));
   roots.sort((a, b) => b.length - a.length);
   const entries = config.verify.filter((entry) => entry.root === roots[0]);
   if (entries.length === 0) return null;
-  for (const file of [...(def.tests ?? []), ...def.files]) {
+  for (const file of [...(def.tests ?? []), ...files]) {
     const match = entries.find((entry) => ecosystemsFor(file).includes(entry.ecosystem));
     if (match) return match;
   }
@@ -99,7 +101,7 @@ export function verify(root, runId, taskId) {
   task.status = "verifying";
   task.changedFiles = attributedFiles(ctx, taskId);
 
-  const entry = selectVerifyEntry(ctx.config, def);
+  const entry = selectVerifyEntry(ctx.config, def, task.changedFiles);
   let steps = [];
   let failures = [];
   if (entry) {

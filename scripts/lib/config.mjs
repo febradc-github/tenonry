@@ -7,10 +7,14 @@ export const DEFAULT_ROUTING = {
   thresholds: {
     clarifyIfAmbiguity: 0.6,
     planning: { minNeedsPlan: 0.5, minDifficulty: 2.0, minUi: 0.5 },
+    design: { minNewDesign: 0.5, minVisualChange: 0.5 },
+    answer: { minConfidence: 0.7 },
+    quick: { minConfidence: 0.7, maxDifficulty: 0.5 },
     haiku: { minFullySpecified: 0.8, maxDifficulty: 0.6, maxBlastRadius: 0.5 },
     opus: { minDifficulty: 2.0 },
     roundUpIfConfidenceBelow: 0.5,
     codeReviewOpus: { minRisky: 0.5, minBlastRadius: 1.5 },
+    codeReviewHaiku: { maxDifficulty: 0.6, maxRisky: 0.2, maxBlastRadius: 0.5 },
     newFileOwnerMinConfidence: 0.5,
   },
 };

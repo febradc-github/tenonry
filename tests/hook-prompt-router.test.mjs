@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { runNode, script } from "./helpers/run.mjs";
 import { makeProject } from "./helpers/project.mjs";
-import { writeFixture, BASE_ANSWERS, directIntake } from "./helpers/jev.mjs";
+import { writeFixture, BASE_ANSWERS, directIntake, quickIntake, answerIntake } from "./helpers/jev.mjs";
 import { readState } from "../scripts/lib/state.mjs";
 import { extractRequest } from "../scripts/hook-prompt-router.mjs";
 
@@ -52,6 +52,20 @@ test("a small, clear request is routed past planning", () => {
   assert.equal(saved.answers.needs_plan.noul, 0.1);
   const log = fs.readFileSync(path.join(root, ".tenonry", "logs", "jev-decisions.jsonl"), "utf8");
   assert.equal(JSON.parse(log.trim()).decision.plan, "no", "the decision is logged");
+});
+
+test("0.4.0: the hook records the lane, the contract model, and the design decision", () => {
+  const lanes = (intake, env = {}) => {
+    const root = makeProject();
+    const result = route(root, "/tenonry:run do it", {}, intake ? { TENONRY_JEV_FIXTURE: writeFixture({ intake }) } : env);
+    const saved = routeFile(root, runIdOf(result));
+    return [saved.lane, saved.contractModel, saved.design];
+  };
+  assert.deepEqual(lanes(BASE_ANSWERS.intake), ["build", "opus", "yes"]);
+  assert.deepEqual(lanes(directIntake()), ["build", "sonnet", "no"]);
+  assert.deepEqual(lanes(quickIntake()), ["quick", "sonnet", "no"]);
+  assert.deepEqual(lanes(answerIntake()), ["answer", "opus", "yes"]);
+  assert.deepEqual(lanes(null, { TENONRY_JEV_DISABLE: "1" }), ["build", "opus", "yes"], "without Jev nothing is skipped");
 });
 
 test("ignores prompts without /tenonry:run", () => {

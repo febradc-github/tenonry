@@ -9,7 +9,7 @@ All paths are relative to the plugin root unless marked `<project>`. Every JSON 
 ```json
 {
   "name": "tenonry",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Specialist multi-agent pipeline: Jev-routed models, spec-first tests, single-owner files, design and code reviewers.",
   "author": { "name": "Dan Christian Febra" },
   "keywords": ["agents", "orchestration", "jev", "openrouter", "code-quality", "design"]
@@ -24,7 +24,7 @@ All paths are relative to the plugin root unless marked `<project>`. Every JSON 
   "description": "Local marketplace for the Tenonry plugin.",
   "owner": { "name": "Dan Christian Febra" },
   "plugins": [
-    { "name": "tenonry", "source": "./", "description": "Specialist multi-agent pipeline with Jev routing.", "version": "0.3.1" }
+    { "name": "tenonry", "source": "./", "description": "Specialist multi-agent pipeline with Jev routing.", "version": "0.4.0" }
   ]
 }
 ```
@@ -157,6 +157,10 @@ See section 5.2 for the algorithm. Exports `findPackageRoots(root)`, `detectPack
 
 `previewStart(root)`, `previewStop(root)`, and `previewCredentials(root)` implement the `preview-start`, `preview-stop`, and `preview-credentials` commands of section 6. `loginAvailable(root)` tells `review-plan` whether to write `login: available` into a design review delegation. Nothing in this module logs or stores a credential.
 
+### 2.13 `direct.mjs`
+
+The stand-ins that code writes when Jev lets a run skip an agent: `directPlan(root, runId)`, `designCheck(root, runId)`, and `quickContract(root, runId)` implement the `direct-plan`, `design-check`, and `quick-contract` commands of section 6. Each file they write says in its first lines that no agent wrote it.
+
 ## 3. Ownership
 
 ### 3.1 `ownership.json` schema
@@ -232,7 +236,7 @@ Two priority bands in the catalog are deliberate. The styling specialists (`css`
 {
   "version": 1,
   "plugin": "tenonry",
-  "pluginVersion": "0.3.1",
+  "pluginVersion": "0.4.0",
   "initializedAt": "<ISO>",
   "packages": [
     { "root": ".", "packageManager": "npm", "specialists": ["laravel", "eloquent", "vue", "tailwind", "html", "php", "nodejs"] }
@@ -249,10 +253,14 @@ Two priority bands in the catalog are deliberate. The styling specialists (`css`
     "thresholds": {
       "clarifyIfAmbiguity": 0.6,
       "planning": { "minNeedsPlan": 0.5, "minDifficulty": 2.0, "minUi": 0.5 },
+      "design": { "minNewDesign": 0.5, "minVisualChange": 0.5 },
+      "answer": { "minConfidence": 0.7 },
+      "quick": { "minConfidence": 0.7, "maxDifficulty": 0.5 },
       "haiku": { "minFullySpecified": 0.8, "maxDifficulty": 0.6, "maxBlastRadius": 0.5 },
       "opus": { "minDifficulty": 2.0 },
       "roundUpIfConfidenceBelow": 0.5,
       "codeReviewOpus": { "minRisky": 0.5, "minBlastRadius": 1.5 },
+      "codeReviewHaiku": { "maxDifficulty": 0.6, "maxRisky": 0.2, "maxBlastRadius": 0.5 },
       "newFileOwnerMinConfidence": 0.5
     }
   },
@@ -282,6 +290,9 @@ On re-init, `routing`, `limits`, `readGuard`, and `outputFilter` are preserved f
   "answers": { },
   "clarify": "no",
   "plan": "yes",
+  "lane": "build",
+  "contractModel": "opus",
+  "design": "yes",
   "difficulty": 1.2,
   "difficultyConfidence": 0.81,
   "taskType": "feature",
@@ -290,7 +301,7 @@ On re-init, `routing`, `limits`, `readGuard`, and `outputFilter` are preserved f
 }
 ```
 
-`clarify` is `yes`, `no`, or `auto` (Jev unavailable: the clarify-intake skill decides). `plan` is `yes` or `no`: `no` makes the run a direct run that skips the planner (`docs/04-JEV-ROUTING.md` section 3); Jev unavailable: `yes`. A `route.json` without the field, written by an older version, counts as `yes`. `jev` is `ok` or `fallback`. `mainModel.notice` is true when the main session runs on Haiku; the `run` skill then shows a one-line tip and continues.
+`clarify` is `yes`, `no`, or `auto` (Jev unavailable: the clarify-intake skill decides). `plan` is `yes` or `no`: `no` makes the run a direct run that skips the planner (`docs/04-JEV-ROUTING.md` section 3); Jev unavailable: `yes`. A `route.json` without the field, written by an older version, counts as `yes`. `lane` is `build`, `quick` (one task written by `quick-contract`, no test author), or `answer` (a question answered in the main session, no pipeline). `contractModel` is the model the test author runs on, `opus` or `sonnet`. `design` is `yes` or `no`: `no` lets `design-check` skip the art director when a design direction already exists. For all three, Jev unavailable or a missing field means the full pipeline: `build`, `opus`, `yes`. `jev` is `ok` or `fallback`. `mainModel.notice` is true when the main session runs on Haiku; the `run` skill then shows a one-line tip and continues.
 
 ### 4.3 `run.json`
 
@@ -321,7 +332,7 @@ On re-init, `routing`, `limits`, `readGuard`, and `outputFilter` are preserved f
 }
 ```
 
-`phase`: `intake`, `planning`, `design`, `contract`, `building`, `final-gate`, `done`, `stopped`. Task `status`: `pending`, `running`, `verifying`, `reviewing`, `done`, `done_with_findings`, `blocked`. Tasks are added to `run.json` when the contract first validates. Commands add a few optional task fields as a run progresses: `plannedReviews` (the reviewer kinds of the current round), `reviews` (the latest `design` and `code` statuses), `unrenderedReason` (set while the latest design status is `unrendered`), `unresolved` (feedback lines kept when a task ends as `done_with_findings`), and `handoffRetries`.
+`phase`: `intake`, `planning`, `design`, `contract`, `building`, `final-gate`, `done`, `stopped`. Task `status`: `pending`, `running`, `verifying`, `reviewing`, `done`, `done_with_findings`, `blocked`. Tasks are added to `run.json` when the contract first validates. Commands add a few optional task fields as a run progresses: `plannedReviews` (the reviewer kinds of the current round), `reviews` (the latest `design` and `code` statuses), `unrenderedReason` (set while the latest design status is `unrendered`), `unresolved` (feedback lines kept when a task ends as `done_with_findings`), `handoffRetries`, `difficulty` (the dispatch difficulty score Jev gave when `next` chose the model, or null on a fallback; `review-plan` uses it), and `visualReview` (for a `ui` task: whether the design reviewer runs, decided in the first review round).
 
 ### 4.4 `contract.json`
 
@@ -359,6 +370,8 @@ On re-init, `routing`, `limits`, `readGuard`, and `outputFilter` are preserved f
 }
 ```
 
+A contract written by `quick-contract` also carries `"quick": true` at the top level. It has one task whose `files` list is empty: the builder finds the files among those it owns.
+
 A builder may run the project's own generators and migration tools for files it owns, and a generator may name a file differently from the contract (for example a migration with a different timestamp). That needs no contract change: `verify`, `ownership-check`, and `checkpoint` work from the files that actually changed since the task's baseline and attribute every one the task owner may change, whether or not it is listed in `files`.
 
 ### 4.5 Contract validation (`contract-check`)
@@ -368,7 +381,7 @@ Errors (any one makes the contract invalid):
 1. Not valid JSON, `version` is not 1, or `runId` differs from the run.
 2. No tasks; a task id not matching `^T[0-9]+$`; duplicate ids.
 3. `owner` is not in `config.agents`, or is a core or reviewer agent (`tenonry-planner`, `tenonry-art-director`, `tenonry-test-author`, `tenonry-design-reviewer`, `tenonry-review-*`).
-4. Empty `files`; a path that is absolute, contains `..`, or resolves (ownership rules plus run rules) to an owner that does not allow the task owner. The error names the actual owner or says `unowned`.
+4. Empty `files`, unless the contract has `quick: true`; a path that is absolute, contains `..`, or resolves (ownership rules plus run rules) to an owner that does not allow the task owner. The error names the actual owner or says `unowned`.
 5. A file listed in more than one task.
 6. `dependsOn` naming an unknown task, or a dependency cycle.
 7. A `tests` path whose owner is not `tenonry-test-author`, or that does not exist on disk.
@@ -436,7 +449,7 @@ Severity: `blocking`, `major`, `minor`. `rule` references a code rubric id from 
 
 ### 4.9 Jev decision log (`.tenonry/logs/jev-decisions.jsonl`)
 
-Decision line: `{"ts", "runId", "task": <id|null>, "kind": "intake|dispatch|owner|risk", "ok": bool, "fallbackReason", "answers", "decision", "latencyMs", "cost"}`.
+Decision line: `{"ts", "runId", "task": <id|null>, "kind": "intake|dispatch|owner|risk|quick", "ok": bool, "fallbackReason", "answers", "decision", "latencyMs", "cost"}`.
 Outcome line (appended by `verify`): `{"ts", "runId", "task", "kind": "outcome", "model", "attempt": n, "result": "pass|fail"}`.
 
 ## 5. `scripts/init.mjs`
@@ -534,10 +547,12 @@ Single CLI used by the `run` skill. Run from the project as `node .tenonry/bin/t
 
 | Command | Behavior |
 |---|---|
-| `new-run --prompt <text>`, `new-run --prompt-stdin`, or `new-run --prompt-file <path>` | `state.newRun`. Returns `{ runId, runDir }`. Writes `route.json` with `jev: "fallback"`, `fallbackReason: "no_hook"`, `clarify: "auto"`, `plan: "yes"`, and `mainModel: { current: "unknown", notice: false }`. `--prompt-stdin` reads the request from standard input and strips one trailing newline; empty input prints `{ ok: false, error: "empty_prompt" }` and exits 1. The `run` skill passes the request through a quoted heredoc, so no temporary file and no shell quoting is needed |
+| `new-run --prompt <text>`, `new-run --prompt-stdin`, or `new-run --prompt-file <path>` | `state.newRun`. Returns `{ runId, runDir }`. Writes `route.json` with `jev: "fallback"`, `fallbackReason: "no_hook"`, `clarify: "auto"`, `plan: "yes"`, `lane: "build"`, `contractModel: "opus"`, `design: "yes"`, and `mainModel: { current: "unknown", notice: false }`. `--prompt-stdin` reads the request from standard input and strips one trailing newline; empty input prints `{ ok: false, error: "empty_prompt" }` and exits 1. The `run` skill passes the request through a quoted heredoc, so no temporary file and no shell quoting is needed |
 | `write-brief <run>` | Writes `.tenonry/runs/<run>/brief.md` as `# Request`, a blank line, the run's prompt verbatim (from `route.json` `prompt`, else `run.json` `prompt`), and a trailing newline. Returns `{ path }` |
 | `write-brief <run> --stdin` | Writes standard input to `brief.md` as given, ensuring one trailing newline. Empty input prints `{ ok: false, error: "empty_brief" }` and exits 1. Returns `{ path }`. Used by the clarify-intake skill |
 | `direct-plan <run>` | Direct runs only (`route.json` has `plan: "no"`). Writes `.tenonry/runs/<run>/plan.md` in plain code, with no agent: the metadata block `ui: <yes|no>` and `direct: yes`, the heading `# Direct run`, one paragraph saying that no planner ran and the brief is the whole specification, then `brief.md` as written (when `brief.md` is missing, the same text `write-brief <run>` would write). `ui` is `yes` when `route.json` `ui` is at least `planning.minUi`. Returns `{ path, ui }`. Any other `plan` value changes nothing and returns `{ ok: false, reason: "plan_required" }`; the `run` skill then spawns the planner. Calling it again rewrites the same file |
+| `design-check <run>` | Decides the design step in plain code. Reads `ui` from the metadata block of `plan.md` (missing file: `{ ok: false, error: "plan_not_found" }`, exit 1). `ui` is not `yes`: `{ design: "skip", reason: "no_ui", ui: "no" }`. `design-brief.md` already exists and was written by the art director: `{ design: "skip", reason: "already_designed", ui: "yes" }`, and the file is left alone. `.tenonry/design-direction.md` exists and `route.json` has `design: "no"`: writes `design-brief.md` in plain code (heading `# Design brief: no new design`, a paragraph saying no art director ran, one section for every screen the run touches with `Profile: product` and the instruction to follow the design direction and add nothing new, and a review focus of consistency) and returns `{ design: "skip", reason: "no_new_design", ui: "yes", brief }`. Otherwise `{ design: "run", mode, ui: "yes" }`, where `mode` is `extend` when the design direction exists and `create` when it does not. Never changes the phase |
+| `quick-contract <run>` | Quick runs only. `route.json` `lane` is not `quick`: `{ ok: false, reason: "not_quick" }`. A contract already exists: a quick one is reused (`source: "existing"`), any other gives `{ ok: false, reason: "contract_exists" }`. Otherwise picks the owner (the only active builder specialist, else Jev's choice per `docs/04-JEV-ROUTING.md` section 11; none accepted: `{ ok: false, reason: "no_owner" }`), then writes `contract.json` with `quick: true` and one task `T1`: title = the first non-empty line of the request, whitespace collapsed, cut at a word boundary to at most 72 characters, trailing punctuation removed; summary = the request; `files`, `dependsOn`, `tests`, and `interfaces` empty; `ui` and `newScreen` false; one acceptance line. It validates the contract as `contract-check` does (invalid: `{ ok: false, reason: "invalid_contract", errors }`, nothing written), writes a short `contract.md`, and adds the task to `run.json`. Returns `{ owner, source, tasks, path }`, `source` being `only`, `jev`, or `existing`. On any `ok: false` the `run` skill spawns the test author as usual. Besides the test author and `handoff`, this is the only writer of `contract.json` |
 | `intake <run>` | Runs `runIntake` for the run's prompt (same Jev questions and mapping as the hook) and rewrites `route.json`. Used when the hook did not route the prompt (first run before setup, or hook failure) |
 | `status [<run>]` | Returns the run (default: active run) with task statuses, plus `display`: a ready-to-print plain-text summary (section 6.11) |
 | `undo [<run>]` | Section 6.12 |
@@ -554,7 +569,7 @@ Single CLI used by the `run` skill. Run from the project as `node .tenonry/bin/t
 | `review-status <run> <task>` | Section 6.5 |
 | `checkpoint <run> <task>` | Recomputes `changedFiles` exactly as `verify` step 1 does, then commits them with message `tenonry(<task>): <title>`. Sets status `done` unless already `done_with_findings`; when the task's latest design status is `unrendered`, sets `done_with_findings` instead of `done`. Not a git repo or nothing changed: `{ skipped: <reason> }` and the status still updates. Commit failure (for example a pre-commit hook rejecting it): `{ skipped: "commit_failed", error }`, note added to the task, status still updates. Otherwise returns `{ sha }` |
 | `owner <path> --run <run> [--purpose <text>]` | Section 6.6 |
-| `handoff <run> <task>` | Reads the task report. For each handoff path, resolves the owner with the `owner` logic. Groups paths by owner; for each owner that is not the task's own owner, appends a follow-up task to `contract.json` and `run.json`: id `T<next number>`, that owner, those files, summary `Needed by <task>: <reasons>`, acceptance `["Provides what <task> needs: <reasons>"]`, empty tests, `ui` true when the owner's layer is frontend or 3d. Adds the new ids to the original task's `dependsOn` and sets it back to `pending` (tier unchanged). Paths with no resolvable owner get a task note and are skipped. Returns `{ created: [ids], unresolved: [paths] }`. This command is the only writer of `contract.json` besides the test author |
+| `handoff <run> <task>` | Reads the task report. For each handoff path, resolves the owner with the `owner` logic. Groups paths by owner; for each owner that is not the task's own owner, appends a follow-up task to `contract.json` and `run.json`: id `T<next number>`, that owner, those files, summary `Needed by <task>: <reasons>`, acceptance `["Provides what <task> needs: <reasons>"]`, empty tests, `ui` true when the owner's layer is frontend or 3d. Adds the new ids to the original task's `dependsOn` and sets it back to `pending` (tier unchanged). Paths with no resolvable owner get a task note and are skipped. Returns `{ created: [ids], unresolved: [paths] }`. This command and `quick-contract` are the only writers of `contract.json` besides the test author |
 | `task-files <run> <task>` | Returns `{ files: changedFiles }` |
 | `reset-task <run> <task>` | Sets status `pending`, keeps the tier, clears `failuresOnTier`. Returns the task |
 | `block-task <run> <task> --reason <text>` | Sets status `blocked` and records the reason as a note. Returns the task |
@@ -574,14 +589,14 @@ Single CLI used by the `run` skill. Run from the project as `node .tenonry/bin/t
    - If `task.tier` is set (escalation), use it.
    - Otherwise ask Jev the dispatch questions (`docs/04-JEV-ROUTING.md`) and map the answers.
    - Apply the owner's `modelFloor`.
-4. Set `status: running`, `tier: <model>`, push an attempt `{ model, startedAt }`, set `baseline: git.snapshot(root)` (taken once per call, shared by the tasks started together).
+4. Set `status: running`, `tier: <model>`, push an attempt `{ model, startedAt }`, set `baseline: git.snapshot(root)` (taken once per call, shared by the tasks started together). When Jev was asked, also record `difficulty`: its dispatch difficulty score, or null on a fallback. An escalated task keeps the value it had.
 5. Return `{ ready: [{ task, agent, model, reason, delegation }], running: [...ids], remaining: <count of not-finished tasks> }`. `delegation` is the exact message in section 6.10.
 6. When no task is ready and none is active: return `{ ready: [], running: [], remaining: <n> }`. If `remaining > 0`, all remaining tasks are blocked.
 
 ### 6.2 `verify`
 
 1. Set status `verifying`. `changedFiles` = paths from `git.diffSince(baseline)` whose owner allows the task owner.
-2. Pick the verify entry whose `root` is the longest prefix of the task's first file.
+2. Pick the verify entry whose `root` is the longest prefix of the task's first file. A task that lists no files (a quick task) uses the first file it changed instead.
 3. Steps, in order, each through `exec-filter` (in-process function): tests (`testFiles` with the task's tests when both exist, otherwise skipped with reason `no_test_template` or `no_tests`), `typecheck` (if not null), `lint` (if not null). Run each step with `cwd` set to the package root.
 4. `result`: `pass` when every executed step passes. The test step passes only on exit 0. Typecheck and lint run project-wide while other tasks' tests may still reference unbuilt code, so they are scoped: a typecheck or lint step passes on exit 0, and also on a non-zero exit when its full output mentions none of the task's `changedFiles` or `tests` paths (match the relative path, or the path relative to the package root). The final gate applies no such scoping.
 5. Append an outcome line to the Jev log (`model` = current tier, `attempt` = attempts length).
@@ -596,10 +611,10 @@ Using `git.diffSince(baseline)`: each changed path is attributed to this task if
 ### 6.4 `review-plan`
 
 1. Set status `reviewing`.
-2. Ask Jev the risk questions with state `{ task (title, summary, acceptance), files: changedFiles, diffStat (git diff --stat for those files), diffExcerpt (first 8,000 characters of git diff for those files, including untracked files shown with git diff --no-index /dev/null <file>) }`.
+2. Ask Jev the risk questions (`docs/04-JEV-ROUTING.md` section 6) with state `{ task (title, summary, acceptance), files: changedFiles, diffStat (git diff --stat for those files), diffExcerpt (first 8,000 characters of git diff for those files, including untracked files shown with git diff --no-index /dev/null <file>) }`.
 3. Reviewers:
-   - Code: always `tenonry-review-<owner id>`. Model `opus` when `risky >= codeReviewOpus.minRisky` or `blastRadius >= codeReviewOpus.minBlastRadius`, else `sonnet`. Jev unavailable: `opus`.
-   - Design: when `task.ui` is true and `tenonry-design-reviewer` is in `config.agents`. Model always `opus`.
+   - Code: always `tenonry-review-<owner id>`. Model `opus` when `risky >= codeReviewOpus.minRisky` or `blastRadius >= codeReviewOpus.minBlastRadius`; else `haiku` for a trivial, low-risk, contained change (the exact rule is in `docs/04-JEV-ROUTING.md` section 6); else `sonnet`. Jev unavailable: `opus`.
+   - Design: when `task.ui` is true, `tenonry-design-reviewer` is in `config.agents`, and the task's `visualReview` is true. `visualReview` is decided in the task's first review round and stored: true for a new screen, when Jev is unavailable, or when Jev says the change alters layout or styling; otherwise false, with the task note `skipped design review: the change does not alter layout or styling`. Model always `opus`.
 4. Increment the matching `reviewRounds` counters.
 5. Return `{ reviewers: [{ agent, kind, model, delegation }] }`.
 

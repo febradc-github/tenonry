@@ -1,7 +1,7 @@
 {
   "name": "tenonry-dev",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Development tooling for the Tenonry plugin. The plugin itself has no dependencies.",
   "type": "module",
   "scripts": {

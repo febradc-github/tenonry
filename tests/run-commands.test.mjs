@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { setupScenario } from "./helpers/scenario.mjs";
-import { dispatchAnswers, directIntake, writeFixture, BASE_ANSWERS } from "./helpers/jev.mjs";
+import { dispatchAnswers, directIntake, quickIntake, answerIntake, riskAnswers, writeFixture, BASE_ANSWERS } from "./helpers/jev.mjs";
 import { git, makeProject } from "./helpers/project.mjs";
 import { runNode } from "./helpers/run.mjs";
 
@@ -19,7 +19,7 @@ test("new-run creates a run with a fallback route", () => {
   const route = JSON.parse(fs.readFileSync(path.join(s.root, second.runDir, "route.json"), "utf8"));
   assert.deepEqual(route, {
     runId: second.runId, createdAt: route.createdAt, prompt: "second request", jev: "fallback", fallbackReason: "no_hook", answers: {},
-    clarify: "auto", plan: "yes", difficulty: null, difficultyConfidence: null, taskType: null, ui: null, mainModel: { current: "unknown", notice: false },
+    clarify: "auto", plan: "yes", lane: "build", contractModel: "opus", design: "yes", difficulty: null, difficultyConfidence: null, taskType: null, ui: null, mainModel: { current: "unknown", notice: false },
   });
   assert.equal(JSON.parse(fs.readFileSync(`${s.runDir}/run.json`, "utf8")).phase, "stopped", "the previous unfinished run is stopped");
 });
@@ -123,6 +123,161 @@ test("direct-plan refuses whenever a plan is required and writes nothing", () =>
 
   assert.equal(planned.cli.raw("direct-plan", "r-nope").status, 1);
   assert.equal(planned.cli.raw("direct-plan").status, 1);
+});
+
+const plan = (s, ui) => fs.writeFileSync(`${s.runDir}/plan.md`, `---\nui: ${ui}\nnew_screens: []\nlayers: [frontend]\n---\n# Plan\n`);
+const direction = (s) => s.write(".tenonry/design-direction.md", "# Design direction\n");
+const setRoute = (s, patch) => {
+  const file = `${s.runDir}/route.json`;
+  fs.writeFileSync(file, JSON.stringify({ ...JSON.parse(fs.readFileSync(file, "utf8")), ...patch }));
+};
+
+test("0.4.0: design-check skips when the plan has no ui and never writes a brief", () => {
+  const s = setupScenario({ contract: false });
+  plan(s, "no");
+  direction(s);
+  setRoute(s, { design: "no" });
+  assert.deepEqual(s.cli("design-check", s.runId), { ok: true, design: "skip", reason: "no_ui", ui: "no" });
+  assert.ok(!fs.existsSync(`${s.runDir}/design-brief.md`));
+  assert.equal(s.run().phase, "intake", "it never moves the phase by itself");
+});
+
+test("0.4.0: design-check runs the art director in create mode until a design direction exists, whatever Jev said", () => {
+  const s = setupScenario({ contract: false });
+  plan(s, "yes");
+  setRoute(s, { design: "no" });
+  assert.deepEqual(s.cli("design-check", s.runId), { ok: true, design: "run", mode: "create", ui: "yes" });
+  assert.ok(!fs.existsSync(`${s.runDir}/design-brief.md`));
+});
+
+test("0.4.0: design-check runs the art director in extend mode when new design is needed", () => {
+  const s = setupScenario({ contract: false });
+  plan(s, "yes");
+  direction(s);
+  assert.deepEqual(s.cli("design-check", s.runId), { ok: true, design: "run", mode: "extend", ui: "yes" }, "the route from new-run says design: yes");
+  const { design, ...older } = JSON.parse(fs.readFileSync(`${s.runDir}/route.json`, "utf8"));
+  fs.writeFileSync(`${s.runDir}/route.json`, JSON.stringify(older));
+  assert.equal(s.cli("design-check", s.runId).design, "run", "a route.json from before 0.4.0 designs");
+});
+
+test("0.4.0: design-check writes the no-new-design brief when Jev says the existing look is enough", () => {
+  const s = setupScenario({ contract: false });
+  plan(s, "yes");
+  direction(s);
+  setRoute(s, { design: "no" });
+  const result = s.cli("design-check", s.runId);
+  assert.deepEqual(result, { ok: true, design: "skip", reason: "no_new_design", ui: "yes", brief: `.tenonry/runs/${s.runId}/design-brief.md` });
+  const brief = fs.readFileSync(`${s.runDir}/design-brief.md`, "utf8");
+  assert.match(brief, /^# Design brief: no new design\n\nNo art director ran for this request\./);
+  assert.match(brief, /^- Profile: `product`$/m, "the design reviewer can read a profile from it");
+  assert.match(brief, /^## Review focus$/m);
+  assert.ok(brief.includes(".tenonry/design-direction.md"));
+  assert.deepEqual(s.cli("design-check", s.runId), result, "running it again is harmless");
+});
+
+test("0.4.0: design-check never overwrites a brief the art director wrote", () => {
+  const s = setupScenario({ contract: false });
+  plan(s, "yes");
+  direction(s);
+  setRoute(s, { design: "no" });
+  fs.writeFileSync(`${s.runDir}/design-brief.md`, "# Design brief: Loyalty\n\n## Loyalty page\n");
+  assert.deepEqual(s.cli("design-check", s.runId), { ok: true, design: "skip", reason: "already_designed", ui: "yes" });
+  assert.equal(fs.readFileSync(`${s.runDir}/design-brief.md`, "utf8"), "# Design brief: Loyalty\n\n## Loyalty page\n");
+});
+
+test("0.4.0: design-check reads ui from a direct plan and fails clearly without a plan", () => {
+  const s = setupScenario({ contract: false, jev: { intake: directIntake({ ui: 0.9, newDesign: 0.1 }) } });
+  assert.equal(s.cli.raw("design-check", s.runId).json.error, "plan_not_found");
+  s.cli("intake", s.runId);
+  s.cli("direct-plan", s.runId);
+  direction(s);
+  assert.equal(s.cli("design-check", s.runId).reason, "no_new_design");
+  assert.equal(s.cli.raw("design-check", "r-nope").status, 1);
+});
+
+test("0.4.0: intake records the lane, the contract model, and the design decision", () => {
+  const quick = setupScenario({ contract: false, jev: { intake: quickIntake() } });
+  const route = quick.cli("intake", quick.runId);
+  assert.deepEqual([route.lane, route.plan, route.contractModel, route.design], ["quick", "no", "sonnet", "no"]);
+  const question = setupScenario({ contract: false, jev: { intake: answerIntake() } });
+  assert.equal(question.cli("intake", question.runId).lane, "answer");
+  assert.equal(question.cli("phase", question.runId, "done").phase, "done", "an answered run is closed without tasks");
+  assert.match(question.cli("status").display, /Finished\n.*\nTasks: 0 done/);
+});
+
+test("0.4.0: quick-contract writes a one-task contract for the specialist Jev picks", () => {
+  const s = setupScenario({ contract: false, jev: { intake: quickIntake() } });
+  s.cli("intake", s.runId);
+  const result = s.cli("quick-contract", s.runId);
+  assert.deepEqual(result, { ok: true, owner: "tenonry-laravel", source: "jev", tasks: 1, path: `.tenonry/runs/${s.runId}/contract.json` });
+  const contract = s.contract();
+  assert.deepEqual(contract, {
+    version: 1, runId: s.runId, title: "add loyalty points", summary: "add loyalty points", quick: true, interfaces: [],
+    tasks: [{
+      id: "T1", title: "add loyalty points", owner: "tenonry-laravel", summary: "add loyalty points", files: [], dependsOn: [],
+      acceptance: ["The change the request describes is made completely, and nothing else changes."], tests: [], ui: false, newScreen: false, interfaces: [],
+    }],
+    notes: contract.notes,
+  });
+  assert.match(contract.notes, /^Quick change: Jev judged this a small mechanical change, so no test author ran and no new tests were written\./);
+  const summary = fs.readFileSync(`${s.runDir}/contract.md`, "utf8");
+  assert.match(summary, /^# Contract: add loyalty points\n/);
+  assert.match(summary, /\| T1 \| tenonry-laravel \| add loyalty points \| - \|/);
+  assert.deepEqual(Object.keys(s.run().tasks), ["T1"]);
+  assert.equal(s.run().tasks.T1.owner, "tenonry-laravel");
+  assert.equal(s.run().contractFixes, 0);
+  assert.deepEqual(s.cli("contract-check", s.runId).errors, [], "the written contract is valid");
+  assert.equal(s.log().find((line) => line.kind === "quick").decision.owner, "tenonry-laravel");
+  assert.deepEqual(s.cli("quick-contract", s.runId), { ...result, source: "existing" }, "running it again reuses the contract");
+});
+
+test("0.4.0: quick-contract shortens a long request into the task title", () => {
+  const s = setupScenario({ contract: false, jev: { intake: quickIntake() } });
+  const request = `\n  Rename   the constant MAX_POINTS to MAX_LOYALTY_POINTS everywhere it is used in the loyalty module, please.\nKeep the value.`;
+  const { runId } = s.cli("new-run", "--prompt", request);
+  s.cli("intake", runId);
+  assert.equal(s.cli("quick-contract", runId).ok, true);
+  const contract = JSON.parse(fs.readFileSync(path.join(s.root, ".tenonry/runs", runId, "contract.json"), "utf8"));
+  assert.equal(contract.title, "Rename the constant MAX_POINTS to MAX_LOYALTY_POINTS everywhere it is", "cut at a word boundary");
+  assert.ok(contract.title.length <= 72);
+  assert.equal(contract.tasks[0].summary, request.trim());
+});
+
+test("0.4.0: quick-contract hands back to the test author whenever it cannot be sure", () => {
+  const notQuick = setupScenario({ contract: false, jev: { intake: directIntake() } });
+  assert.deepEqual(notQuick.cli("quick-contract", notQuick.runId), { ok: false, reason: "not_quick" }, "the route written by new-run is not quick");
+  notQuick.cli("intake", notQuick.runId);
+  const refused = notQuick.cli.raw("quick-contract", notQuick.runId);
+  assert.deepEqual([refused.status, refused.json], [0, { ok: false, reason: "not_quick" }]);
+
+  const unsure = setupScenario({ contract: false, jev: { intake: quickIntake(), quick: { owner: { type: "choice", choice: "tenonry-laravel", confidence: 0.49 } } } });
+  unsure.cli("intake", unsure.runId);
+  assert.deepEqual(unsure.cli("quick-contract", unsure.runId), { ok: false, reason: "no_owner" }, "Jev is not sure who owns the change");
+
+  const down = setupScenario({ contract: false, jev: { intake: quickIntake() } });
+  down.cli("intake", down.runId);
+  down.cli.env = { TENONRY_JEV_FIXTURE: "", TENONRY_JEV_DISABLE: "1" };
+  assert.deepEqual(down.cli("quick-contract", down.runId), { ok: false, reason: "no_owner" }, "Jev is unavailable");
+
+  for (const s of [notQuick, unsure, down]) {
+    assert.ok(!fs.existsSync(`${s.runDir}/contract.json`));
+    assert.deepEqual(s.run().tasks, {});
+  }
+
+  const authored = setupScenario({ jev: { intake: quickIntake() } });
+  authored.cli("intake", authored.runId);
+  assert.deepEqual(authored.cli("quick-contract", authored.runId), { ok: false, reason: "contract_exists" }, "a test author's contract is never replaced");
+  assert.equal(authored.contract().tasks.length, 3);
+  assert.equal(authored.cli.raw("quick-contract", "r-nope").status, 1);
+});
+
+test("0.4.0: with one active specialist quick-contract needs no Jev call", () => {
+  const s = setupScenario({ fixture: "go-api", contract: false, jev: { intake: quickIntake(), quick: undefined } });
+  const active = JSON.parse(fs.readFileSync(path.join(s.root, ".tenonry/config.json"), "utf8")).activeSpecialists;
+  assert.deepEqual(active, ["go"]);
+  s.cli("intake", s.runId);
+  assert.deepEqual(s.cli("quick-contract", s.runId), { ok: true, owner: "tenonry-go", source: "only", tasks: 1, path: `.tenonry/runs/${s.runId}/contract.json` });
+  assert.equal(s.log().filter((line) => line.kind === "quick").length, 0);
 });
 
 test("status displays a mixed run exactly", () => {

@@ -24,7 +24,7 @@ The ownership guard blocks edits to any other file. Never edit tests; the test a
 
 ## Workflow (mode `build`)
 
-1. Read your task in the contract (`task` id): summary, files, acceptance criteria, tests, and interfaces. Read `plan.md` for context.
+1. Read your task in the contract (`task` id): summary, files, acceptance criteria, tests, and interfaces. Read `plan.md` for context. A task with an empty `files` list is a quick change that no test author prepared: find the files the change needs among the files you own, and keep the change exactly as small as the request.
 2. Read the task's tests. They define done.
 3. Read the existing code around your files before writing. Use LSP navigation where available. Follow the project's existing conventions; when they conflict with the idioms below, the project's conventions win.
 4. Make the smallest complete change that satisfies the acceptance criteria and tests, in the task's files. Touch another file you own only when the task cannot work without it, and list it in `filesChanged`.

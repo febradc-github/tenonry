@@ -206,3 +206,49 @@ One change, requested directly by the developer: Opus builds only complex tasks.
 
 D-078 (Opus builds only complex tasks) and D-079 (pushed on the developer's instruction). Full text in `docs/DECISIONS.md`.
 
+## Revision 0.4.0
+
+Six more decisions handed to Jev to cut token use, requested directly by the developer after seeing the list and its costs. One commit, `feat(0.4.0): six more decisions for Jev`, pushed to `origin/main` on the developer's instruction (D-086).
+
+### What changed
+
+| # | Decision | What happens now | Decision |
+|---|---|---|---|
+| 1 | Contract model | When the plan was skipped, the test author runs on Sonnet instead of Opus | D-080 |
+| 2 | Is new design work needed | A UI request that designs nothing new skips the art director; `design-check` writes a brief that says to keep the existing look | D-081 |
+| 3 | Is a visual review needed | A UI task that does not change layout or styling skips the design reviewer | D-082 |
+| 4 | Review depth | A trivial, contained, low-risk task that passed first time is code-reviewed on Haiku. Nothing is left unreviewed | D-083 |
+| 5 | Is this a code change | A question is answered in the main session; the pipeline does not start | D-084 |
+| 6 | Quick lane | A small mechanical change outside the interface becomes one task written by `quick-contract`; the test author does not run and no new tests are written | D-085 |
+
+Supporting changes: two new Jev questions (`new_design` at intake, `visual_change` at review) and one new question set (`quick`, the owner of a quick change); three new `route.json` fields (`lane`, `contractModel`, `design`); two new commands (`design-check`, `quick-contract`) in the new `scripts/lib/direct.mjs`, which also took over `direct-plan`; four new threshold groups; three new progress lines; one new sentence in the builder template. Version 0.4.0.
+
+### Test results
+
+- `node --test`: **499 tests, 498 passed, 0 failed, 1 skipped** across 32 test files. The one skip is the live Jev test. Thirty-six tests are new.
+- `node scripts/tenonry.mjs catalog-check`: passes; the catalog is untouched.
+- `claude plugin validate .` and `claude plugin validate . --strict`: both pass (Claude Code 2.1.285).
+- Existing tests changed because the behavior changed on purpose: exact `route.json`, intake, dispatch, and risk comparisons gained the new fields; the shared fixtures gained the new answers; the UI task in the review-plan test is now reviewed on Haiku because the scenario's task is trivial; the "sonnet for a low-risk change" test now uses a task that is not trivial; one README wording check; the version assertions.
+
+### Skipped or unverified checks
+
+| Check | Why | What stands in for it |
+|---|---|---|
+| Live Jev call with the new questions | No `.env` with `OPENROUTER_API_KEY` at the repository root | Fixtures for every branch. The questions use the Noul and Choice types already in use. How Jev actually answers them on real requests is not measured |
+| A real `/tenonry:run` on each new path, and the install smoke test | Token cost | The orchestrator's steps for a quick run and a direct run are driven through the real CLI in `tests/pipeline.test.mjs`; the skill text for steps 3, 5, and 6 is checked sentence by sentence; `claude plugin validate` |
+| The direct answer (item 5) | It is skill text carried out by the main session, with no code path to test beyond the routing and the closed run | Tests of the `answer` lane mapping, the closed run, and the skill sentences |
+
+### Things worth knowing
+
+- **Nothing changes without a Jev key.** Every shortcut needs a Jev answer. No key, a timeout, or an error means the full pipeline, exactly as in 0.2.0.
+- **All thresholds are first guesses.** None has been tuned against real answers. Each decision and the answers behind it are in `.tenonry/logs/jev-decisions.jsonl`; the README lists the value that switches each shortcut off.
+- **Item 4 was narrowed.** The proposal said "Haiku review, or none". It is Haiku only: every task is still reviewed (D-083).
+- **Item 6 writes no new tests, by design, and is narrow on purpose.** It needs a confident `mechanical` classification, a confident low difficulty, no plan, no clarification, and no interface change, and it hands back to the test author on any doubt. The existing suite at the final gate, typecheck and lint, the ownership guard, and the code review still apply. `quick.maxDifficulty: -1` turns it off (D-085).
+- **Item 5 can misfire in one direction.** A change request that Jev confidently takes for a question gets an answer and no change. The answer always ends with a line saying no files were changed and how to ask for a change, and the confidence bar is 0.7 rather than 0.5 (D-084).
+- **The art director still runs on a project's first UI request**, whatever Jev says, because there is no design direction to keep yet (D-081).
+- **D-076 point 7 is reversed.** In 0.3.0 the test author was deliberately left on Opus for skipped-plan runs; the developer asked for Sonnet (D-080).
+
+### New decisions
+
+D-080 to D-086. Full text in `docs/DECISIONS.md`.
+

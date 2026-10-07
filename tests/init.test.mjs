@@ -36,7 +36,7 @@ test("init writes config, ownership, bin, rubrics, agents, and gitignore", () =>
 
   const cfg = config(root);
   assert.equal(cfg.plugin, "tenonry");
-  assert.equal(cfg.pluginVersion, "0.3.1");
+  assert.equal(cfg.pluginVersion, "0.4.0");
   assert.deepEqual(cfg.activeSpecialists, [...cfg.activeSpecialists].sort());
   assert.deepEqual(cfg.verify.map(({ ecosystem, ...v }) => v), [
     { root: ".", test: "php artisan test", testFiles: "php artisan test {files}", typecheck: null, lint: "./vendor/bin/pint --test" },
@@ -49,7 +49,7 @@ test("init writes config, ownership, bin, rubrics, agents, and gitignore", () =>
   for (const file of ["tenonry.mjs", "exec-filter.mjs", "hook-ownership-guard.mjs", "VERSION", "lib/glob.mjs", "library/catalog.json"]) {
     assert.ok(fs.existsSync(path.join(root, ".tenonry", "bin", file)), file);
   }
-  assert.equal(fs.readFileSync(path.join(root, ".tenonry", "bin", "VERSION"), "utf8"), "0.3.1\n");
+  assert.equal(fs.readFileSync(path.join(root, ".tenonry", "bin", "VERSION"), "utf8"), "0.4.0\n");
   for (const file of ["design.md", "code.md"]) assert.ok(fs.existsSync(path.join(root, ".tenonry", "rubrics", file)));
 
   const gitignore = fs.readFileSync(path.join(root, ".gitignore"), "utf8");
@@ -186,6 +186,25 @@ test("0.3.1: re-init drops the retired opus.minBlastRadius and keeps an edited o
   runInit(root);
   assert.deepEqual(config(root).routing.thresholds.opus, { minDifficulty: 2.25 });
   assert.deepEqual(config(root).routing.thresholds.codeReviewOpus, { minRisky: 0.5, minBlastRadius: 1.5 }, "the reviewer's knob of the same name is untouched");
+});
+
+test("0.4.0: init writes the new thresholds, and re-init adds them to an older config without touching edits", () => {
+  const root = fixtureCopy("laravel-vue");
+  runInit(root);
+  const added = {
+    design: { minNewDesign: 0.5, minVisualChange: 0.5 },
+    answer: { minConfidence: 0.7 },
+    quick: { minConfidence: 0.7, maxDifficulty: 0.5 },
+    codeReviewHaiku: { maxDifficulty: 0.6, maxRisky: 0.2, maxBlastRadius: 0.5 },
+  };
+  const pick = (thresholds) => Object.fromEntries(Object.keys(added).map((key) => [key, thresholds[key]]));
+  assert.deepEqual(pick(config(root).routing.thresholds), added);
+  const older = config(root);
+  for (const key of Object.keys(added)) delete older.routing.thresholds[key];
+  older.routing.thresholds.quick = { maxDifficulty: -1 };
+  fs.writeFileSync(path.join(root, ".tenonry", "config.json"), JSON.stringify(older, null, 2));
+  runInit(root);
+  assert.deepEqual(pick(config(root).routing.thresholds), { ...added, quick: { minConfidence: 0.7, maxDifficulty: -1 } });
 });
 
 test("0.3.0: init writes the planning thresholds, and re-init adds them to a config from an older version", () => {

@@ -69,6 +69,15 @@ export function intakeQuestions() {
         false: "Only behavior, data, APIs, tooling, or infrastructure change.",
       },
     },
+    new_design: {
+      type: "noul",
+      instructions:
+        "Does this request need new visual design decisions, such as a new screen, a new kind of component, a new layout, or a change to the look and feel? Or can it be built entirely with the interface's existing look?",
+      criteria: {
+        true: "Something has to be designed: a new screen or component, a new layout, or a changed visual style.",
+        false: "Nothing new to design: no interface change, or only text, a field or option added to an existing form or list, or existing elements shown, hidden, or reordered.",
+      },
+    },
   };
 }
 
@@ -100,8 +109,20 @@ export function ownerQuestions(candidates) {
   };
 }
 
-export function riskQuestions() {
+const VISUAL_CHANGE_QUESTION = {
+  type: "noul",
+  instructions:
+    "Does this change alter how the interface looks or is laid out, so that someone has to see it rendered in a browser to judge it: layout, spacing, color, typography, imagery, motion, or a new or restructured component or screen?",
+  criteria: {
+    true: "The rendered layout or styling changes.",
+    false: "Only text content, data wiring, behavior, or logic changes; layout and styling stay as they are.",
+  },
+};
+
+// `visual` adds the question that decides whether a UI task needs the design reviewer (docs/04 section 6).
+export function riskQuestions({ visual = false } = {}) {
   return {
+    ...(visual ? { visual_change: VISUAL_CHANGE_QUESTION } : {}),
     risky: {
       type: "noul",
       instructions:
@@ -115,13 +136,33 @@ export function riskQuestions() {
   };
 }
 
+// Which path the run takes: `answer` (a question, no pipeline), `quick` (one task, no test author), or `build`.
+function laneOf(answers, thresholds, clarify, plan) {
+  const { task_type: type, difficulty, ui } = answers;
+  if (type.choice === "investigation" && type.confidence >= thresholds.answer.minConfidence) return "answer";
+  const quick =
+    type.choice === "mechanical" &&
+    type.confidence >= thresholds.quick.minConfidence &&
+    plan === "no" &&
+    clarify === "no" &&
+    difficulty.score <= thresholds.quick.maxDifficulty &&
+    difficulty.confidence >= thresholds.roundUpIfConfidenceBelow &&
+    ui.noul < thresholds.planning.minUi;
+  return quick ? "quick" : "build";
+}
+
 export function mapIntake(answers, thresholds, family) {
   const needsPlan = answers.needs_plan.noul >= thresholds.planning.minNeedsPlan || answers.difficulty.score >= thresholds.planning.minDifficulty;
+  const clarify = answers.ambiguity.noul >= thresholds.clarifyIfAmbiguity ? "yes" : "no";
+  const plan = needsPlan ? "yes" : "no";
   return {
     jev: "ok",
     fallbackReason: null,
-    clarify: answers.ambiguity.noul >= thresholds.clarifyIfAmbiguity ? "yes" : "no",
-    plan: needsPlan ? "yes" : "no",
+    clarify,
+    plan,
+    lane: laneOf(answers, thresholds, clarify, plan),
+    contractModel: plan === "no" ? "sonnet" : "opus",
+    design: answers.new_design.noul >= thresholds.design.minNewDesign ? "yes" : "no",
     difficulty: answers.difficulty.score,
     difficultyConfidence: answers.difficulty.confidence,
     taskType: answers.task_type.choice,
@@ -136,6 +177,9 @@ export function fallbackIntake(reason, family) {
     fallbackReason: reason,
     clarify: "auto",
     plan: "yes",
+    lane: "build",
+    contractModel: "opus",
+    design: "yes",
     difficulty: null,
     difficultyConfidence: null,
     taskType: null,
@@ -159,12 +203,12 @@ export function mapDispatch(answers, thresholds, floor) {
   if (unsure && model === "haiku") model = "sonnet";
   model = applyFloor(model, floor);
   const reason = `jev difficulty=${two(difficulty.score)}(c${two(difficulty.confidence)}) specified=${two(specified.noul)} blast=${two(blast.score)}(c${two(blast.confidence)}) -> ${model}`;
-  return { model, reason };
+  return { model, reason, difficulty: difficulty.score };
 }
 
 export function fallbackDispatch(failure, floor) {
   const model = applyFloor("sonnet", floor);
-  return { model, reason: `fallback ${failure} -> ${model}` };
+  return { model, reason: `fallback ${failure} -> ${model}`, difficulty: null };
 }
 
 export function mapOwner(answers, thresholds) {
@@ -172,12 +216,35 @@ export function mapOwner(answers, thresholds) {
   return { owner: choice, confidence, accepted: confidence >= thresholds.newFileOwnerMinConfidence };
 }
 
-export function mapRisk(answers, thresholds) {
-  const opus = answers.risky.noul >= thresholds.codeReviewOpus.minRisky || answers.blast_radius.score >= thresholds.codeReviewOpus.minBlastRadius;
-  return { model: opus ? "opus" : "sonnet", risky: answers.risky.noul, blastRadius: answers.blast_radius.score };
+// `trivial` is true for an easy task that passed its checks on the first attempt and is in its first review round.
+// `visual` is true when the visual_change question was asked.
+export function mapRisk(answers, thresholds, { trivial = false, visual = false } = {}) {
+  const { codeReviewOpus: high, codeReviewHaiku: low, roundUpIfConfidenceBelow: minConfidence } = thresholds;
+  const risky = answers.risky.noul;
+  const blast = answers.blast_radius;
+  let model = "sonnet";
+  if (risky >= high.minRisky || blast.score >= high.minBlastRadius) model = "opus";
+  else if (trivial && risky <= low.maxRisky && blast.score <= low.maxBlastRadius && blast.confidence >= minConfidence) model = "haiku";
+  return { model, risky, blastRadius: blast.score, visualChange: visual ? answers.visual_change.noul : null };
 }
 
-export const fallbackRisk = () => ({ model: "opus", risky: null, blastRadius: null });
+export const fallbackRisk = () => ({ model: "opus", risky: null, blastRadius: null, visualChange: null });
+
+// Whether a UI task gets the design reviewer: always for a new screen or without Jev, otherwise only for a visual change.
+export function needsVisualReview(decision, thresholds, { newScreen = false } = {}) {
+  if (newScreen || decision.visualChange === null) return true;
+  return decision.visualChange >= thresholds.design.minVisualChange;
+}
+
+export function quickOwnerQuestions(candidates) {
+  return {
+    owner: {
+      type: "choice",
+      instructions: "Which specialist should make this change, based on the request and the files each specialist owns?",
+      criteria: ownerQuestions(candidates).owner.criteria,
+    },
+  };
+}
 
 function familyOf(name) {
   const lower = String(name ?? "").toLowerCase();
@@ -243,6 +310,9 @@ export async function runIntake(root, runId, request, family) {
     answers: result.answers ?? {},
     clarify: result.decision.clarify,
     plan: result.decision.plan,
+    lane: result.decision.lane,
+    contractModel: result.decision.contractModel,
+    design: result.decision.design,
     difficulty: result.decision.difficulty,
     difficultyConfidence: result.decision.difficultyConfidence,
     taskType: result.decision.taskType,
