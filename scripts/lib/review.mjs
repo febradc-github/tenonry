@@ -5,6 +5,7 @@ import { riskQuestions, mapRisk, fallbackRisk } from "./routing.mjs";
 import { reviewMessage, fixMessage } from "./delegation.mjs";
 import { readJson } from "./json.mjs";
 import * as git from "./git.mjs";
+import { loginAvailable } from "./preview.mjs";
 
 export const DESIGN_WEIGHTS = { ux: 0.15, visual: 0.15, content: 0.1, accessibility: 0.1, performance: 0.2, responsive: 0.1, innovation: 0.2 };
 const SEVERITIES = ["blocking", "major", "minor"];
@@ -55,6 +56,7 @@ export async function reviewPlan(root, runId, taskId) {
   });
 
   const preview = ctx.config.preview ?? null;
+  const login = loginAvailable(root);
   const planned = [];
   const reviewers = [];
   const plan = (agent, kind, model) => {
@@ -65,7 +67,7 @@ export async function reviewPlan(root, runId, taskId) {
       agent,
       kind,
       model,
-      delegation: reviewMessage({ runId, task: def, kind, round: task.reviewRounds[kind], files, preview }),
+      delegation: reviewMessage({ runId, task: def, kind, round: task.reviewRounds[kind], files, preview, login }),
     });
   };
   plan(`tenonry-review-${specialistId(def.owner)}`, "code", risk.decision.model);

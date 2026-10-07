@@ -70,7 +70,7 @@ test("review-plan: ui tasks also get an opus design reviewer with preview detail
       "TENONRY_REVIEW", `run: ${s.runId}`, "task: T3", "kind: design", "round: 1", `contract: .tenonry/runs/${s.runId}/contract.json`,
       "files:", "  - resources/js/Pages/Loyalty.vue", "design_direction: .tenonry/design-direction.md",
       `design_brief: .tenonry/runs/${s.runId}/design-brief.md`, "preview_command: composer run dev", "preview_url: http://127.0.0.1:8000",
-      "preview_cwd: .", `write_to: .tenonry/runs/${s.runId}/reviews/T3.design.json`,
+      "preview_cwd: .", "login: none", `write_to: .tenonry/runs/${s.runId}/reviews/T3.design.json`,
     ].join("\n"),
   );
   assert.ok(!plan.reviewers[0].delegation.includes("design_direction"));
@@ -82,7 +82,7 @@ test("review-plan omits preview details as none and removes stale review files",
   s.setConfig({ preview: null });
   s.review(task, "code", codeReview(task));
   const plan = s.cli("review-plan", s.runId, task);
-  assert.match(plan.reviewers[1].delegation, /preview_command: none\npreview_url: none\npreview_cwd: none/);
+  assert.match(plan.reviewers[1].delegation, /preview_command: none\npreview_url: none\npreview_cwd: none\nlogin: none\n/);
   assert.ok(!fs.existsSync(`${s.runDir}/reviews/${task}.code.json`));
 });
 
@@ -214,4 +214,34 @@ test("review-status: both reviewers must pass", () => {
   assert.equal(status.code.status, "fail");
   assert.equal(status.design.status, "pass");
   assert.equal(status.overall, "fail");
+});
+
+test("F6: design delegations say login: available when preview credentials exist, and never contain them", () => {
+  const { s, task } = reviewing({ ui: true });
+  const secrets = ["reviewer@example.test", "local-secret-pw-91"];
+  fs.writeFileSync(`${s.root}/.env`, `TENONRY_PREVIEW_USER=${secrets[0]}\nTENONRY_PREVIEW_PASSWORD=${secrets[1]}\nTENONRY_PREVIEW_LOGIN_URL=/sign-in\n`);
+  const plan = s.cli("review-plan", s.runId, task);
+  const [code, design] = plan.reviewers;
+  assert.match(design.delegation, /\npreview_cwd: \.\nlogin: available\nwrite_to: /);
+  assert.ok(!code.delegation.includes("login:"), "code reviews carry no login line");
+  assert.deepEqual(s.cli("preview-credentials"), { ok: true, available: true, loginUrl: "http://127.0.0.1:8000/sign-in", user: secrets[0], password: secrets[1] });
+
+  const haystack = [JSON.stringify(plan)];
+  const collect = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) collect(full);
+      else haystack.push(fs.readFileSync(full, "utf8"));
+    }
+  };
+  collect(`${s.root}/.tenonry/logs`);
+  collect(`${s.root}/.tenonry/runs`);
+  haystack.push(fs.readFileSync(`${s.root}/.tenonry/state.json`, "utf8"));
+  for (const secret of secrets) assert.ok(!haystack.some((text) => text.includes(secret)), "credentials never reach a delegation, log, or run file");
+});
+
+test("F6: design delegations say login: none with only one credential value", () => {
+  const { s, task } = reviewing({ ui: true });
+  fs.writeFileSync(`${s.root}/.env`, "TENONRY_PREVIEW_USER=someone\n");
+  assert.match(s.cli("review-plan", s.runId, task).reviewers[1].delegation, /\nlogin: none\n/);
 });

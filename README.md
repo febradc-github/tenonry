@@ -44,6 +44,20 @@ OPENROUTER_API_KEY=sk-or-...
 
 Tenonry reads the key from that file only, never from your shell environment, and never prints or logs it. Without a key everything still works: tasks run on Sonnet (never below a specialist's own minimum) and code reviews run on Opus. You see a one-time tip about it. Set `TENONRY_JEV_DISABLE=1` to turn Jev off even when a key exists.
 
+## Signed-in screens
+
+The design reviewer opens your pages in a browser. For screens behind a login, add a local test account to the project's `.env`:
+
+```
+TENONRY_PREVIEW_USER=test@example.com
+TENONRY_PREVIEW_PASSWORD=...
+TENONRY_PREVIEW_LOGIN_URL=/login
+```
+
+`TENONRY_PREVIEW_LOGIN_URL` is optional; it can be a path or a full URL and defaults to `/login` on the preview address. Use a local test account only, never a real one. Tenonry reads these values from `.env` only, hands them to the design reviewer when it needs to sign in, and never logs them. Without them, a screen that needs a login is reported as not visually checked instead of being judged by its login page.
+
+Tenonry starts your dev server for the review when it is not already running, logs it to `.tenonry/logs/preview.log`, and stops only the one it started.
+
 ## What gets created
 
 Commit these:

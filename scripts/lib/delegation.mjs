@@ -26,7 +26,7 @@ export function fixMessage(runId, task, feedback) {
   return [...taskHeader(runId, task, "fix"), "feedback:", indent(feedback)].join("\n");
 }
 
-export function reviewMessage({ runId, task, kind, round, files, preview }) {
+export function reviewMessage({ runId, task, kind, round, files, preview, login = false }) {
   const lines = ["TENONRY_REVIEW", `run: ${runId}`, `task: ${task.id}`, `kind: ${kind}`, `round: ${round}`, `contract: ${relRunPath(runId, "contract.json")}`];
   lines.push("files:", ...files.map((file) => `  - ${file}`));
   if (kind === "design") {
@@ -36,6 +36,7 @@ export function reviewMessage({ runId, task, kind, round, files, preview }) {
       `preview_command: ${preview?.command ?? "none"}`,
       `preview_url: ${preview?.url ?? "none"}`,
       `preview_cwd: ${preview?.cwd ?? "none"}`,
+      `login: ${login ? "available" : "none"}`,
     );
   }
   lines.push(`write_to: ${relRunPath(runId, "reviews", `${task.id}.${kind}.json`)}`);

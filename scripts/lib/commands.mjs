@@ -12,6 +12,7 @@ import { reviewPlan, reviewStatus } from "./review.mjs";
 import { ownerCommand, handoff } from "./owner.mjs";
 import { report, status, calibrate } from "./report.mjs";
 import { undo } from "./undo.mjs";
+import { previewStart, previewStop, previewCredentials } from "./preview.mjs";
 import { loadRun } from "./state.mjs";
 import { runDir } from "./paths.mjs";
 
@@ -124,5 +125,8 @@ export const COMMANDS = {
   "final-gate": { run: ({ root, args }) => finalGate(root, need(args[0], "run")) },
   report: { run: ({ root, args }) => report(root, need(args[0], "run")) },
   calibrate: { run: ({ root }) => calibrate(root) },
+  "preview-start": { run: ({ root }) => previewStart(root) },
+  "preview-stop": { run: ({ root }) => previewStop(root) },
+  "preview-credentials": { run: ({ root }) => previewCredentials(root) },
 };
 

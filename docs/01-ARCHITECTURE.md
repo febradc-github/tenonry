@@ -123,7 +123,7 @@ The `library/` directory is deliberately not named `agents/`, so Claude Code doe
     rubrics/design.md, code.md (committed)
     bin/                       (gitignored; copies of plugin scripts)
     state.json                 (gitignored)
-    logs/                      (gitignored; exec logs, jev-decisions.jsonl)
+    logs/                      (gitignored; exec logs, jev-decisions.jsonl, preview.log, preview.pid, screenshots/)
     runs/<run-id>/             (gitignored)
       run.json  route.json  brief.md  plan.md  design-brief.md
       contract.json  contract.md
@@ -150,7 +150,7 @@ The `library/` directory is deliberately not named `agents/`, so Claude Code doe
 3. The specialist edits only its owned files (the ownership guard enforces it) and writes `reports/<task>.json`. It may run the project's own generators and migration tools for files it owns; anything a command writes outside its files is caught by `ownership-check` and reverted.
 4. `tenonry.mjs verify` runs the task's tests, typecheck, and lint through `exec-filter.mjs`. Failure: resume the same specialist with filtered failures. Two failures on a tier: escalate one tier (haiku, sonnet, opus) and respawn fresh. Two failures on opus: task `blocked`, independent tasks continue.
 5. `tenonry.mjs ownership-check` confirms every changed file belongs to the task's owner.
-6. `tenonry.mjs review-plan` asks Jev the risk questions and returns which reviewers run on which model. Design reviewer runs for UI tasks (always opus). The specialist's code reviewer always runs (opus when risky or wide, otherwise sonnet).
+6. `tenonry.mjs review-plan` asks Jev the risk questions and returns which reviewers run on which model. Design reviewer runs for UI tasks (always opus); it starts the preview with `tenonry.mjs preview-start`, signs in with the optional preview account from `.env` when the delegation says `login: available`, and stops a preview it started with `preview-stop`. The specialist's code reviewer always runs (opus when risky or wide, otherwise sonnet).
 7. Review failures go back to the owning specialist, then re-verify and re-review, up to the round limits. Exhausted rounds: `done_with_findings`.
 8. `tenonry.mjs checkpoint` commits exactly the task's files: `tenonry(<task-id>): <title>`.
 9. Repeat until no tasks remain. Then `tenonry.mjs final-gate` runs the full suite and `tenonry.mjs report` writes `report.md`.

@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import path from "node:path";
 import { repoRoot } from "./docs.mjs";
 
@@ -19,4 +19,25 @@ export function runNode(file, args = [], { input, cwd, env } = {}) {
     json = null;
   }
   return { status: result.status, stdout: result.stdout, stderr: result.stderr, json };
+}
+
+// Like runNode, but without blocking the event loop, for tests that serve HTTP from the test process.
+export function runNodeAsync(file, args = [], { input, cwd, env } = {}) {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [file, ...args], { cwd, env: { ...process.env, ...env } });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => (stdout += chunk));
+    child.stderr.on("data", (chunk) => (stderr += chunk));
+    child.on("close", (status) => {
+      let json = null;
+      try {
+        json = JSON.parse(stdout);
+      } catch {
+        json = null;
+      }
+      resolve({ status, stdout, stderr, json });
+    });
+    child.stdin.end(input ?? "");
+  });
 }

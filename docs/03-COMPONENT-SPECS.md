@@ -410,7 +410,9 @@ Severity: `blocking`, `major`, `minor`. `rule` references a code rubric id from 
   "task": "T4",
   "reviewer": "tenonry-design-reviewer",
   "round": 1,
+  "profile": "showcase",
   "rendered": true,
+  "unrenderedReason": null,
   "viewports": [375, 768, 1440],
   "scores": { "ux": 8, "visual": 7, "content": 7, "accessibility": 8, "performance": 7, "responsive": 8, "innovation": 6 },
   "weighted": 7.25,
@@ -418,10 +420,12 @@ Severity: `blocking`, `major`, `minor`. `rule` references a code rubric id from 
   "findings": [
     { "severity": "major", "criterion": "visual", "file": "resources/js/Pages/Loyalty.vue", "problem": "Uniform rounded cards with identical shadows read as a template kit.", "fix": "Use the tier progression as the visual anchor per design-brief; drop card chrome." }
   ],
-  "screenshots": [".tenonry/runs/<run>/reviews/T4-375.png"],
+  "screenshots": [".tenonry/logs/screenshots/<run>-T4-loyalty-375.png"],
   "summary": "One paragraph."
 }
 ```
+
+`profile` is `showcase` or `product` (set per screen in the design brief; a review uses the strictest profile among its screens). `unrenderedReason` is null when `rendered` is true, otherwise one of `no_preview`, `preview_failed`, `browser_missing`, `needs_login`, or a short free-text reason. Screenshots are saved under `.tenonry/logs/screenshots/` (gitignored); the reviewer names them with that directory because the Playwright server resolves explicit file names against the project root (decision D-061).
 
 ### 4.9 Jev decision log (`.tenonry/logs/jev-decisions.jsonl`)
 
@@ -549,6 +553,9 @@ Single CLI used by the `run` skill. Run from the project as `node .tenonry/bin/t
 | `final-gate <run>` | Section 6.7 |
 | `report <run>` | Writes `report.md` (section 6.8); sets phase `done` unless it is `stopped`; returns `{ path, summary: { done, total, tasks: [{ id, title, status }], attention: [strings], tryIt: <preview command and URL, else the first verify test command, else null>, jevCost } }` |
 | `calibrate` | Section 6.9 |
+| `preview-start` | If `config.preview.url` answers an HTTP GET with a 2xx or 3xx status within 2 seconds, returns `{ ok: true, reused: true, url }`. If `config.preview.command` (or the URL) is null, returns `{ ok: false, reason: "no_preview" }`. Otherwise stops a stale preview Tenonry started earlier, spawns `/bin/sh -c <command>` detached in its own process group, in `config.preview.cwd` relative to the project root, with stdout and stderr appended to `.tenonry/logs/preview.log`; writes the process group id (and, on a second line, the leader's start time, used only to recognize the process later) to `.tenonry/logs/preview.pid`; polls the URL every 2 seconds for up to 90 seconds. Ready: `{ ok: true, reused: false, url, pid }`. Not ready, or the command exits with a failure first: stops the process group as in `preview-stop` and returns `{ ok: false, reason: "preview_failed", log: ".tenonry/logs/preview.log" }`. `TENONRY_PREVIEW_TIMEOUT_MS` and `TENONRY_PREVIEW_POLL_MS` shorten the wait and the poll interval; they exist only for tests |
+| `preview-stop` | If `.tenonry/logs/preview.pid` exists and still names the process Tenonry started (alive, same start time), sends SIGTERM to that process group, waits up to 5 seconds, sends SIGKILL if it is still alive, deletes the pid file, and returns `{ stopped: true }`. Otherwise deletes a stale pid file and returns `{ stopped: false }`. It only ever stops a preview Tenonry started |
+| `preview-credentials` | Reads `TENONRY_PREVIEW_USER`, `TENONRY_PREVIEW_PASSWORD`, and optional `TENONRY_PREVIEW_LOGIN_URL` from the project `.env` only. Both user and password present: `{ available: true, loginUrl, user, password }`, where `loginUrl` is `TENONRY_PREVIEW_LOGIN_URL` (a full URL, or a path joined to `config.preview.url`), defaulting to `<config.preview.url>/login`. Otherwise `{ available: false }`. These values are never logged or written anywhere else; the design reviewer is the only caller |
 | `catalog-check` | Plugin-only. Validates `library/catalog.json`: unique ids matching `^[a-z0-9-]+$`; layer counts frontend 24, 3d 1, backend 23, data 22; required fields; every glob compiles; `supersedes` ids exist; `modelFloor` in haiku, sonnet, opus; 3 to 5 idioms and 2 to 4 slop items each |
 
 ### 6.1 `next`
@@ -661,10 +668,13 @@ design_brief: .tenonry/runs/<runId>/design-brief.md
 preview_command: <config.preview.command or none>
 preview_url: <config.preview.url or none>
 preview_cwd: <config.preview.cwd or none>
+login: <available|none>
 write_to: .tenonry/runs/<runId>/reviews/<taskId>.<kind>.json
 ```
 
-Code reviews omit the `design_*` and `preview_*` lines.
+`login` is `available` when `preview-credentials` would return `available: true`, otherwise `none`. Credentials never appear in a delegation. The `preview_command`, `preview_url`, and `preview_cwd` lines are for information; the reviewer starts and stops the preview with `preview-start` and `preview-stop`.
+
+Code reviews omit the `design_*`, `preview_*`, and `login` lines.
 
 ### 6.11 Status display
 

@@ -24,13 +24,13 @@ If the message you receive does not start with `TENONRY_REVIEW` and `kind: desig
 
 ## Process
 
-1. Read `.tenonry/rubrics/design.md`, the design direction, the design brief, and the contract task. Know what the art director decided before you look.
-2. Start the preview. If `preview_url` already responds, reuse it. Otherwise start `preview_command` in `preview_cwd` as a background command, logging to `.tenonry/logs/preview.log`, and wait up to 90 seconds for the URL to respond, checking with `node -e "fetch(process.argv[1]).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" <url>`.
-3. If the preview cannot start, set `rendered: false`, review from the design direction, the brief, and the changed files, and continue at step 6.
-4. With the Playwright tools, open each screen this task affects. At widths 375, 768, and 1440: take a screenshot and save it in the run's `reviews/` directory as `<task>-<screen>-<width>.png`, then study it. Exercise the states the brief lists (empty, error, loading, long content) where you can reach them.
+1. Read `.tenonry/rubrics/design.md`, the design direction, the design brief, and the contract task. Know what the art director decided before you look. Set the task's profile: `showcase` if any screen this task affects is marked `showcase` in the brief, otherwise `product`.
+2. Run `node .tenonry/bin/tenonry.mjs preview-start`. If it returns `ok: false`, set `rendered: false` and `unrenderedReason` to its `reason`, review from the design direction, the brief, and the changed files, and continue at step 6.
+3. If the delegation says `login: available`, run `node .tenonry/bin/tenonry.mjs preview-credentials`, open its `loginUrl` with the Playwright tools, and sign in before visiting any screen. Never write the credentials into any file, finding, or summary.
+4. With the Playwright tools, open each screen this task affects. If the browser cannot start, set `rendered: false` and `unrenderedReason: "browser_missing"`, and continue at step 6. If a screen redirects to a sign-in page you cannot get past, do not review the sign-in page in its place: set `rendered: false` and `unrenderedReason: "needs_login"`, and continue at step 6. Otherwise, at widths 375, 768, and 1440, take a screenshot named `.tenonry/logs/screenshots/<run>-<task>-<screen>-<width>.png` and study it. Exercise the states the brief lists (empty, error, loading, long content) where you can reach them.
 5. Check interaction and access: move through the page with Tab and confirm visible focus and logical order; activate the primary action with the keyboard; check hover and active states; confirm motion respects `prefers-reduced-motion` (inspect the styles if you cannot toggle it); compute contrast ratios for the main text and UI color pairs from the tokens; note heavy assets, layout shift, and slow loading.
-6. Score the seven criteria from 0 to 10 using the anchors in the rubric. Then write findings: each with a severity, the criterion, the file responsible when you can tell from the changed files, the problem, and a concrete fix that stays within the design direction.
-7. Write the result to `write_to` in the JSON format below, then stop any preview process you started.
+6. Score the seven criteria from 0 to 10 using the anchors in the rubric. When `rendered` is false, still score from what you could read; such a review never counts as a pass. Then write findings: each with a severity, the criterion, the file responsible when you can tell from the changed files, the problem, and a concrete fix that stays within the design direction.
+7. Write the result to `write_to` in the JSON format below, listing the paths where your screenshots were actually saved. If `preview-start` returned `reused: false`, run `node .tenonry/bin/tenonry.mjs preview-stop`.
 
 ## Calibration
 
@@ -47,7 +47,9 @@ If the message you receive does not start with `TENONRY_REVIEW` and `kind: desig
   "task": "<task id>",
   "reviewer": "tenonry-design-reviewer",
   "round": <round>,
+  "profile": "showcase | product",
   "rendered": true,
+  "unrenderedReason": null,
   "viewports": [375, 768, 1440],
   "scores": { "ux": 0, "visual": 0, "content": 0, "accessibility": 0, "performance": 0, "responsive": 0, "innovation": 0 },
   "weighted": 0,

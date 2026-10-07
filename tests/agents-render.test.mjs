@@ -120,3 +120,22 @@ test("F4: the design reviewer judges an existing identity by consistency and cra
     ),
   );
 });
+
+test("F6: the design reviewer manages the preview through Tenonry and can sign in", () => {
+  const text = fs.readFileSync(path.join(libraryDir, "core", "design-reviewer.md"), "utf8");
+  const process_ = text.slice(text.indexOf("## Process"), text.indexOf("## Calibration"));
+  for (const needle of [
+    "2. Run `node .tenonry/bin/tenonry.mjs preview-start`.",
+    "run `node .tenonry/bin/tenonry.mjs preview-credentials`",
+    "Never write the credentials into any file, finding, or summary.",
+    '`unrenderedReason: "browser_missing"`',
+    '`unrenderedReason: "needs_login"`',
+    "take a screenshot named `.tenonry/logs/screenshots/<run>-<task>-<screen>-<width>.png`",
+    "If `preview-start` returned `reused: false`, run `node .tenonry/bin/tenonry.mjs preview-stop`.",
+  ]) {
+    assert.ok(process_.includes(needle), needle);
+  }
+  assert.ok(!process_.includes("preview_command"), "no ad hoc preview commands remain");
+  assert.equal(process_.split("\n").filter((line) => /^\d+\. /.test(line)).length, 7);
+  assert.ok(text.includes('  "profile": "showcase | product",\n  "rendered": true,\n  "unrenderedReason": null,\n'));
+});
