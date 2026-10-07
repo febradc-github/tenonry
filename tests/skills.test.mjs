@@ -137,6 +137,7 @@ test("F12: every manifest and the dev package agree on the version", () => {
 
 test("F12: no document still tells anyone to run node --test with a directory", () => {
   for (const file of ["CLAUDE.md", "README.md", path.join("docs", "08-BUILD-PLAN-AND-TESTS.md"), path.join("docs", "00-START-PROMPT.md")]) {
-    assert.ok(!read(file).includes("node --test tests/"), file);
+    // The directory form fails on Node 22 and newer (D-044); naming one test file is fine.
+    assert.doesNotMatch(read(file), /node --test tests\/(?![\w.-])/, file);
   }
 });
