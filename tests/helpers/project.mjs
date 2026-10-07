@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { repoRoot } from "./docs.mjs";
+import { runNode } from "./run.mjs";
 
 export function tempDir(prefix = "tenonry-test-") {
   return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
@@ -41,6 +42,22 @@ export function git(root, ...args) {
 
 export function gitInit(root) {
   git(root, "init", "-q", "-b", "main");
+  git(root, "config", "user.name", "test");
+  git(root, "config", "user.email", "test@example.com");
   git(root, "add", "-A");
   git(root, "commit", "-q", "-m", "init", "--allow-empty");
+}
+
+export const fixturePath = (name) => path.join(repoRoot, "tests", "fixtures", name);
+
+// A temporary copy of a fixture. With `git: true` it is also a committed git repository.
+export function fixtureCopy(name, { git: withGit = true } = {}) {
+  const root = tempDir(`tenonry-${name}-`);
+  copyDir(fixturePath(name), root);
+  if (withGit) gitInit(root);
+  return root;
+}
+
+export function runInit(root, ...flags) {
+  return runNode(path.join(repoRoot, "scripts", "init.mjs"), ["--project", root, ...flags]);
 }

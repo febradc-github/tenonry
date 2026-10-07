@@ -233,3 +233,18 @@ Phase 0 entries use the title `Phase 0: V<n> <item>` and a status of Confirmed, 
 - Context: D-016 allows reading inside `node_modules` and `vendor`, but many packages ship their source under `dist/`, which the build-output rule denies. Hook scripts must also be importable by tests without running.
 - Decision: The build-output rule is skipped for any path that has a `node_modules` or `vendor` directory segment. Lockfile, minified, and source map rules still apply there, and `readGuard.allow` still wins over everything. Build-output matching looks at directory segments only, never the file name. Hook scripts run `main()` only when they are the process entry point (`lib/main.mjs`), so tests can import their pure `decide` functions. Until slice 4, `hook-prompt-router.mjs` is a no-op placeholder so `hooks.json` never references a missing file.
 - Reason: Honors the intent of D-016 and avoids false denials such as a source file named `build`.
+
+### D-048: Verify entries carry an `ecosystem` field
+- Context: docs/03 section 5.3 allows several verify entries per package root (one per ecosystem), and section 6.2 says to pick the entry whose `root` is the longest prefix of the task's first file. With two entries at the same root (for example PHP and JS in a Laravel project with Vitest tests) that choice is ambiguous.
+- Decision: Each `config.verify` entry has an extra `ecosystem` field (`js`, `php`, `python`, `go`, `rust`, `ruby`, `elixir`, `dotnet`, `maven`, `gradle`, `flutter`, `dart`). Among entries at the winning root, `verify` prefers the entry whose ecosystem matches the extension of the task's first test file, then of its first file, then the first entry in table order. Entries whose four commands are all null are not written.
+- Reason: Additive field, no change for consumers that ignore it; resolves the ambiguity deterministically without asking Jev.
+
+### D-049: Detection details the spec leaves open
+- Context: Docs/03 5.2 says text signals look at files "at depth 2 or less"; 5.3 reads the `npm init` placeholder test script as a test command; 2.9 names `restore(root, rel, snapshotHash)`.
+- Decision: Depth counts directories above the file (`a/b/c.csproj` is depth 2, so text signals and the manifest hash see it). A `scripts.test` containing `no test specified` is treated as absent so the final gate does not fail on a placeholder. Flutter is detected by a `flutter:` key or `sdk: flutter` in `pubspec.yaml`. `git.restore(root, rel, snapshot)` takes the whole baseline snapshot (it needs to know whether the path was clean at baseline). `git.commit` uses `git commit -m <msg> -- <paths>` so files the user already staged are never swept into a task commit.
+- Reason: Conservative readings that keep the documented behavior and avoid surprising commits or false failures.
+
+### D-050: `--if-changed` also checks that the agent files exist
+- Context: docs/03 5.5 skips init when the manifest hash and `bin/VERSION` match. If a user deletes `.claude/agents/` or an agent file, a skip would leave the run without agents.
+- Decision: The skip also requires every name in `config.agents` to exist as a file in `.claude/agents/`; otherwise a full init runs and rewrites them.
+- Reason: Self-healing at no cost; a full init is idempotent.

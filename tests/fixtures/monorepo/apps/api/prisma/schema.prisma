@@ -1,0 +1,3 @@
+model Order {
+  id Int @id
+}

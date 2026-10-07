@@ -1,0 +1,7 @@
+{
+  "name": "landing",
+  "private": true,
+  "scripts": { "dev": "vite --port 3001" },
+  "dependencies": { "three": "^0.170.0" },
+  "devDependencies": { "vite": "^6.0.0" }
+}

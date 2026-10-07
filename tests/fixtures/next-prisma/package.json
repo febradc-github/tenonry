@@ -1,0 +1,7 @@
+{
+  "name": "web",
+  "private": true,
+  "scripts": { "dev": "next dev", "test": "vitest run" },
+  "dependencies": { "next": "^15.0.0", "react": "^19.0.0", "@prisma/client": "^6.0.0" },
+  "devDependencies": { "prisma": "^6.0.0", "typescript": "^5.6.0", "vitest": "^3.0.0" }
+}

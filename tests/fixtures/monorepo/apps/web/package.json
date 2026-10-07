@@ -1,0 +1,6 @@
+{
+  "name": "web",
+  "private": true,
+  "scripts": { "dev": "next dev -p 3100" },
+  "dependencies": { "next": "^15.0.0", "react": "^19.0.0" }
+}
