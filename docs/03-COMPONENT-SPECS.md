@@ -12,6 +12,7 @@ All paths are relative to the plugin root unless marked `<project>`. Every JSON 
   "version": "0.4.0",
   "description": "Specialist multi-agent pipeline: Jev-routed models, spec-first tests, single-owner files, design and code reviewers.",
   "author": { "name": "Dan Christian Febra" },
+  "license": "MIT",
   "keywords": ["agents", "orchestration", "jev", "openrouter", "code-quality", "design"]
 }
 ```

@@ -164,4 +164,4 @@ The build documents are in `docs/`. Run the tests with `node --test`; the plugin
 
 ## License
 
-Not chosen yet.
+MIT. See [LICENSE](LICENSE).

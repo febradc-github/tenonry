@@ -138,7 +138,7 @@ Phase 0 entries use the title `Phase 0: V<n> <item>` and a status of Confirmed, 
 
 ## Open items for the owner (not blocking the build)
 
-- Choose a license and a public repository before publishing.
+- Choose a license and a public repository before publishing. (Done: the repository is public and the license is MIT, see D-087.)
 - Native Windows support (PowerShell hook variants).
 - Publishing to a shared plugin marketplace.
 
@@ -473,3 +473,8 @@ The developer asked which further decisions could be handed to Jev to save token
 - Context: Version, documents, and the place of the new code.
 - Decision: Version 0.4.0 in `plugin.json`, `marketplace.json`, `package.json`, and the docs/03 examples. `direct-plan` moved from `commands.mjs` into the new `scripts/lib/direct.mjs` together with `design-check` and `quick-contract`: the three stand-ins that code writes when an agent is skipped. Four threshold groups were added (`design`, `answer`, `quick`, `codeReviewHaiku`); re-init adds them to an existing `config.json`. The revision was committed on `main` and pushed to `origin/main` on the developer's instruction, over SSH as before (see D-077).
 - Reason: One version everywhere, and one module for one idea.
+
+### D-087: MIT license
+- Context: D-021 left the license out because the owner had not chosen one, and the README said "Not chosen yet". The repository is now public, and the owner asked for the MIT license.
+- Decision: A `LICENSE` file with the standard MIT text, copyright 2026 Dan Christian Febra (the author named in `plugin.json`). `plugin.json` and the dev `package.json` carry `"license": "MIT"`, the README's License section says MIT and links to the file, and the docs/03 manifest example and the docs/08 README note follow. `repository` stays out of `plugin.json`: it was not asked for. No version bump, because nothing a project runs has changed. This supersedes the license half of D-021.
+- Reason: The owner's choice. Without a license nobody else may legally use or build on the plugin, and plugin directories tend to skip unlicensed repositories.

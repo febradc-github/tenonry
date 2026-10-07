@@ -77,14 +77,14 @@ test("the plugin manifests carry the documented metadata", () => {
   assert.equal(plugin.name, "tenonry");
   assert.equal(plugin.version, "0.4.0");
   assert.deepEqual(plugin.author, { name: "Dan Christian Febra" });
-  assert.equal(plugin.license, undefined);
+  assert.equal(plugin.license, "MIT");
   assert.equal(plugin.repository, undefined);
   const market = JSON.parse(read(".claude-plugin", "marketplace.json"));
   assert.equal(market.name, "tenonry-local");
   assert.deepEqual(market.plugins[0], { name: "tenonry", source: "./", description: "Specialist multi-agent pipeline with Jev routing.", version: "0.4.0" });
 });
 
-test("the user README follows the required order and says the license is not chosen", () => {
+test("the user README follows the required order and names the license", () => {
   const readme = read("README.md");
   const headings = [...readme.matchAll(/^## (.+)$/gm)].map((m) => m[1]);
   assert.deepEqual(headings.slice(0, 4), ["Quick start", "Commands", "What to expect on the first run", "Optional: smarter model routing"]);
@@ -97,7 +97,7 @@ test("the user README follows the required order and says the license is not cho
   assert.equal(quickStart.split("\n").filter((l) => /^\d+\. /.test(l)).length, 3);
   assert.match(readme, /OPENROUTER_API_KEY/);
   assert.match(readme, /calibrate/);
-  assert.match(readme, /Not chosen yet\.$/m);
+  assert.match(readme, /^MIT\. See \[LICENSE\]\(LICENSE\)\.$/m);
   const table = /\| Command \| What happens \|\n\|---\|---\|\n([\s\S]*?)\n\nExamples/.exec(readme)[1];
   assert.equal(table.split("\n").length, 6);
 });
@@ -215,4 +215,12 @@ test("0.4.0: the README changelog lists the six decisions handed to Jev", () => 
   assert.ok(readme.indexOf("### 0.4.0") > readme.indexOf("## Changelog"));
   assert.equal(section.split("\n").filter((line) => line.startsWith("- ")).length, 6);
   assert.match(section, /re-renders that project's agents/);
+});
+
+test("the repository carries the MIT license, and every manifest names it", () => {
+  const license = read("LICENSE");
+  assert.match(license, /^MIT License\n\nCopyright \(c\) 2026 Dan Christian Febra\n/);
+  assert.match(license, /Permission is hereby granted, free of charge, to any person obtaining a copy/);
+  assert.match(license, /THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND/);
+  assert.equal(JSON.parse(read("package.json")).license, "MIT");
 });
