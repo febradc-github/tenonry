@@ -345,3 +345,69 @@ test("F9: code review delegations carry design lines only for ui tasks", () => {
   const backendCode = backend.s.cli("review-plan", backend.s.runId, backend.task).reviewers[0].delegation;
   assert.ok(!/design_|preview_|login:/.test(backendCode));
 });
+
+// F10: showcase and product scoring profiles.
+const PRODUCT_SCORES = { ux: 8, visual: 7, content: 7, accessibility: 8, performance: 8, responsive: 8, innovation: 5 };
+
+function designStatus(scores, extra) {
+  const { s, task } = reviewing({ ui: true });
+  s.cli("review-plan", s.runId, task);
+  s.review(task, "code", codeReview(task));
+  s.review(task, "design", designReview(task, scores, [], extra));
+  return s.cli("review-status", s.runId, task);
+}
+
+test("F10: a product screen passes at 7.50 with innovation 5", () => {
+  const status = designStatus(PRODUCT_SCORES, { profile: "product" });
+  assert.deepEqual(status.design, { status: "pass", profile: "product", weighted: 7.5, rendered: true, findings: 0 });
+  assert.equal(status.overall, "pass");
+});
+
+test("F10: the same scores fail as a showcase page because innovation is below 6", () => {
+  const status = designStatus(PRODUCT_SCORES, { profile: "showcase" });
+  assert.equal(status.design.status, "fail");
+  assert.equal(status.design.profile, "showcase");
+  assert.equal(status.design.weighted, 7.15);
+  assert.match(status.feedback, /^- \[design\] showcase weighted score 7\.15 \(needs 7\.5, every criterion at least 6\)/);
+});
+
+test("F10: a product screen with innovation 4 fails, and other criteria still need 6", () => {
+  const low = designStatus({ ...PRODUCT_SCORES, innovation: 4, ux: 10, performance: 10 }, { profile: "product" });
+  assert.ok(low.design.weighted >= 7.5);
+  assert.equal(low.design.status, "fail");
+  assert.match(low.feedback, /product weighted score .* every criterion at least 6, innovation at least 5\)/);
+  const weakContent = designStatus({ ...PRODUCT_SCORES, content: 5, ux: 10, performance: 10 }, { profile: "product" });
+  assert.equal(weakContent.design.status, "fail");
+});
+
+test("F10: a missing or unknown profile is judged with showcase weights", () => {
+  for (const extra of [{}, { profile: "landing" }, { profile: null }]) {
+    const status = designStatus(PRODUCT_SCORES, extra);
+    assert.deepEqual([status.design.profile, status.design.weighted, status.design.status], ["showcase", 7.15, "fail"]);
+  }
+});
+
+test("F10: both weight tables sum to 1.00 and match the shipped rubric", async () => {
+  const { DESIGN_PROFILES, weightedScore } = await import("../scripts/lib/review.mjs");
+  for (const [profile, weights] of Object.entries(DESIGN_PROFILES)) {
+    const sum = Object.values(weights).reduce((a, b) => a + b, 0);
+    assert.equal(Math.round(sum * 100) / 100, 1, profile);
+    assert.equal(weightedScore({ ux: 10, visual: 10, content: 10, accessibility: 10, performance: 10, responsive: 10, innovation: 10 }, profile), 10);
+  }
+  const rubric = fs.readFileSync(new URL("../library/rubrics/design.md", import.meta.url), "utf8");
+  for (const [criterion, showcase] of Object.entries(DESIGN_PROFILES.showcase)) {
+    const product = DESIGN_PROFILES.product[criterion];
+    assert.ok(rubric.includes(`| ${criterion} | ${showcase.toFixed(2)} | ${product.toFixed(2)} |`), `table row for ${criterion}`);
+    assert.match(rubric, new RegExp(`^### ${criterion}: .* \\(weight: showcase ${showcase.toFixed(2)}, product ${product.toFixed(2)}\\)$`, "m"));
+  }
+  assert.ok(!/\(weight \d/.test(rubric), "no single-weight heading remains");
+});
+
+test("F10: the art director sets a profile for every screen in the brief", () => {
+  const text = fs.readFileSync(new URL("../library/core/art-director.md", import.meta.url), "utf8");
+  assert.ok(
+    text.includes(
+      "- Purpose and primary action\n- Profile: `showcase` (marketing, landing, and storytelling pages judged as award work) or `product` (screens where people get work done: forms, tables, dashboards, settings)\n",
+    ),
+  );
+});

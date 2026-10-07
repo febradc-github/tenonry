@@ -194,3 +194,4 @@ Fallbacks: if Jev times out, errors, or no key exists, tasks run on sonnet (resp
 - The output filter keeps test and build logs out of context; full logs stay on disk.
 - The read guard keeps lockfiles and build output out of context.
 - Design review loops are capped (3 rounds); code review loops are capped (2 rounds).
+- Screens are scored by profile: `showcase` pages by the awards weighting, `product` screens (forms, tables, dashboards, settings) by a weighting that favors clarity, accessibility, and responsiveness, so ordinary work screens do not burn three Opus design rounds chasing originality.

@@ -401,6 +401,7 @@ If the message you receive does not start with `TENONRY_DESIGN`, reply `tenonry-
 For each screen:
 ## <Screen name>
 - Purpose and primary action
+- Profile: `showcase` (marketing, landing, and storytelling pages judged as award work) or `product` (screens where people get work done: forms, tables, dashboards, settings)
 - Content hierarchy (most to least important)
 - Layout (reference a wireframe from the direction or add one)
 - States: loading, empty, error, success, long content
