@@ -289,3 +289,13 @@ Phase 0 entries use the title `Phase 0: V<n> <item>` and a status of Confirmed, 
 - Context: No `.env` with `OPENROUTER_API_KEY` exists on the build machine.
 - Decision: The live call to `POST /api/alpha/decisions` was not made. The client, request shape, pinned model, timeout, error mapping, and logging are tested against a local `node:http` server and fixtures (tests/jev.test.mjs). The endpoint, body, and response shape were checked against the live OpenRouter documentation (D-042).
 - Reason: Hard limits in CLAUDE.md; recorded in BUILD-REPORT.md.
+
+### D-059: Symlink-safe path comparison in the guards
+- Context: Claude Code may report the session directory and a tool's `file_path` through different but equivalent paths (for example `/tmp` and `/private/tmp` on macOS, or a symlinked project directory). A purely lexical comparison would make the ownership guard block every edit ("outside the project") and the read guard allow everything.
+- Decision: The guards use `paths.relResolved`: the lexical relative path when it is inside the project, otherwise the same comparison after resolving symlinks on the project root and on the deepest existing ancestor of the target (the target itself need not exist). Paths that are truly outside the project still count as outside.
+- Reason: Avoids a class of false blocks and false allows without weakening either guard.
+
+### D-060: Node 18 compatibility is checked by API review only
+- Context: CLAUDE.md requires Node 18+. The build machine has only Node v26.7.0, and installing another version would change the user's environment outside this repository.
+- Decision: All tests ran on Node v26.7.0. The scripts were reviewed for newer-than-18 APIs (no `toSorted`, `Object.groupBy`, `import.meta.dirname`, `AbortSignal.timeout`, recursive `readdirSync`); they use only `fetch`, `structuredClone`, `Object.hasOwn`, `Array.prototype.at`, and `fs.cpSync`, all available in Node 18. This is recorded as a skipped check in BUILD-REPORT.md.
+- Reason: Hard limit on actions outside the repository; the review is the closest safe substitute.

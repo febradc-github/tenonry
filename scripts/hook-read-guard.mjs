@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import path from "node:path";
 import { readStdinJson, printResult } from "./lib/json.mjs";
-import { findProjectRoot, rel } from "./lib/paths.mjs";
+import { findProjectRoot, relResolved } from "./lib/paths.mjs";
 import { loadConfig } from "./lib/config.mjs";
 import { isMain } from "./lib/main.mjs";
 import { matchGlob } from "./lib/glob.mjs";
@@ -44,7 +44,7 @@ export function decide(input, env = process.env) {
   const root = findProjectRoot(cwd);
   if (!root) return null;
 
-  const relPath = rel(root, path.resolve(cwd, filePath));
+  const relPath = relResolved(root, path.resolve(cwd, filePath));
   if (!relPath) return null;
   const verdict = classify(relPath, loadConfig(root));
   if (!verdict) return null;

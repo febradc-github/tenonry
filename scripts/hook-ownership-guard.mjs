@@ -2,7 +2,7 @@
 import path from "node:path";
 import { readStdinJson } from "./lib/json.mjs";
 import { readJson } from "./lib/json.mjs";
-import { findProjectRoot, rel } from "./lib/paths.mjs";
+import { findProjectRoot, relResolved } from "./lib/paths.mjs";
 import { loadRules, resolveOwner, ownerAllows } from "./lib/ownership.mjs";
 import { isMain } from "./lib/main.mjs";
 
@@ -16,7 +16,7 @@ export function verdict(input, agentName, env = process.env) {
   const root = findProjectRoot(cwd);
   if (!root) return null;
 
-  const relPath = rel(root, path.resolve(cwd, target));
+  const relPath = relResolved(root, path.resolve(cwd, target));
   if (relPath === null) return `${PREFIX} ${target} is outside the project and must not be edited by agents.`;
 
   const activeRun = readJson(path.join(root, ".tenonry", "state.json"), {}).activeRun ?? null;

@@ -118,3 +118,16 @@ test("works when run from the project's installed bin copy", () => {
   const result = runNode(path.join(root, ".tenonry", "bin", "hook-ownership-guard.mjs"), ["tenonry-eloquent"], { input: JSON.stringify(input) });
   assert.equal(result.status, 0);
 });
+
+test("recognizes the project when the session path and the file path differ by a symlink", () => {
+  const root = project();
+  const link = path.join(tempDir(), "linked-project");
+  fs.symlinkSync(root, link);
+  const input = (agent, file) => runNode(guard, [agent], { input: JSON.stringify({ cwd: link, tool_input: { file_path: file } }) });
+  assert.equal(input("tenonry-eloquent", path.join(root, "app/Models/User.php")).status, 0);
+  const blocked = input("tenonry-laravel", path.join(root, "app/Models/User.php"));
+  assert.equal(blocked.status, 2);
+  assert.match(blocked.stderr, /^tenonry ownership guard: app\/Models\/User\.php is owned by tenonry-eloquent\./);
+  assert.equal(input("tenonry-eloquent", path.join(root, "app/Models/NotYetCreated.php")).status, 0, "new files resolve too");
+  assert.equal(input("tenonry-vue", "/etc/hosts").status, 2, "paths outside stay outside");
+});

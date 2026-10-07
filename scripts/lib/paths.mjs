@@ -33,3 +33,25 @@ export function rel(root, absPath) {
 export function runDir(root, runId) {
   return path.join(root, ".tenonry", "runs", runId);
 }
+
+function realpathOrSelf(target) {
+  try {
+    return fs.realpathSync(target);
+  } catch {
+    return target;
+  }
+}
+
+// Like `rel`, but also matches when the project or the target is reached through a symlink
+// (for example /tmp versus /private/tmp on macOS). The target need not exist yet.
+export function relResolved(root, target) {
+  const lexical = rel(root, target);
+  if (lexical !== null) return lexical;
+  let existing = path.resolve(target);
+  const missing = [];
+  while (!fs.existsSync(existing) && path.dirname(existing) !== existing) {
+    missing.unshift(path.basename(existing));
+    existing = path.dirname(existing);
+  }
+  return rel(realpathOrSelf(root), path.join(realpathOrSelf(existing), ...missing));
+}

@@ -5,7 +5,7 @@ import path from "node:path";
 import { repoRoot, extractBlock, TEXT_SOURCES } from "./helpers/docs.mjs";
 import { MARKER } from "../scripts/lib/render.mjs";
 
-const EM_DASH = "—";
+const EM_DASH = "\u2014";
 const SHIPPED_DIRS = ["library", "skills", "scripts", "hooks", ".claude-plugin"];
 
 function walk(dir) {

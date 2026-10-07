@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { runNode, script } from "./helpers/run.mjs";
-import { makeProject } from "./helpers/project.mjs";
+import { makeProject, tempDir } from "./helpers/project.mjs";
+import fs from "node:fs";
 
 const hook = script("hook-read-guard.mjs");
 
@@ -88,4 +89,13 @@ test("fails open on invalid input", () => {
     assert.equal(result.status, 0);
     assert.equal(result.stdout, "");
   }
+});
+
+test("denies lockfile reads reached through a symlinked project path", () => {
+  const root = makeProject();
+  const link = path.join(tempDir(), "linked-project");
+  fs.symlinkSync(root, link);
+  const input = { cwd: link, tool_input: { file_path: path.join(root, "package-lock.json") } };
+  const result = runNode(hook, [], { input: JSON.stringify(input) });
+  assert.equal(result.json.hookSpecificOutput.permissionDecision, "deny");
 });
