@@ -1,0 +1,179 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import {
+  TIERS, roundUp, applyFloor, nextTier, mapIntake, fallbackIntake, mapDispatch, fallbackDispatch, mapOwner, mapRisk, fallbackRisk,
+  currentModelFamily, runIntake, readRoute, ownerQuestions,
+} from "../scripts/lib/routing.mjs";
+import { DEFAULT_ROUTING } from "../scripts/lib/config.mjs";
+import { BASE_ANSWERS, dispatchAnswers, riskAnswers, writeFixture } from "./helpers/jev.mjs";
+import { makeProject } from "./helpers/project.mjs";
+import { newRun } from "../scripts/lib/state.mjs";
+
+const thresholds = DEFAULT_ROUTING.thresholds;
+
+test("tier helpers", () => {
+  assert.deepEqual(TIERS, ["haiku", "sonnet", "opus"]);
+  assert.equal(roundUp("haiku"), "sonnet");
+  assert.equal(roundUp("sonnet"), "opus");
+  assert.equal(roundUp("opus"), "opus");
+  assert.equal(applyFloor("haiku", "sonnet"), "sonnet");
+  assert.equal(applyFloor("opus", "sonnet"), "opus");
+  assert.equal(applyFloor("haiku", "haiku"), "haiku");
+  assert.equal(nextTier("haiku"), "sonnet");
+  assert.equal(nextTier("sonnet"), "opus");
+  assert.equal(nextTier("opus"), null);
+});
+
+test("intake: clarify yes at or above the ambiguity threshold, no below", () => {
+  const answers = (noul) => ({ ...BASE_ANSWERS.intake, ambiguity: { type: "noul", noul } });
+  assert.equal(mapIntake(answers(0.6), thresholds, "sonnet").clarify, "yes");
+  assert.equal(mapIntake(answers(0.95), thresholds, "sonnet").clarify, "yes");
+  assert.equal(mapIntake(answers(0.59), thresholds, "sonnet").clarify, "no");
+});
+
+test("intake maps difficulty, task type, and ui", () => {
+  const mapped = mapIntake(BASE_ANSWERS.intake, thresholds, "opus");
+  assert.deepEqual(mapped, {
+    jev: "ok", fallbackReason: null, clarify: "no", difficulty: 1.1, difficultyConfidence: 0.85, taskType: "feature", ui: 0.9,
+    mainModel: { current: "opus", notice: false },
+  });
+});
+
+test("the Haiku notice is on for haiku and off for sonnet, opus, fable, and unknown", () => {
+  for (const [family, notice] of [["haiku", true], ["sonnet", false], ["opus", false], ["fable", false], ["unknown", false]]) {
+    assert.equal(mapIntake(BASE_ANSWERS.intake, thresholds, family).mainModel.notice, notice, family);
+    assert.equal(fallbackIntake("no_key", family).mainModel.notice, notice, family);
+  }
+});
+
+test("intake fallback asks the clarify skill to decide", () => {
+  assert.deepEqual(fallbackIntake("timeout", "sonnet"), {
+    jev: "fallback", fallbackReason: "timeout", clarify: "auto", difficulty: null, difficultyConfidence: null, taskType: null, ui: null,
+    mainModel: { current: "sonnet", notice: false },
+  });
+});
+
+test("dispatch picks haiku when fully specified, easy, and contained", () => {
+  const { model, reason } = mapDispatch(dispatchAnswers(), thresholds, "haiku");
+  assert.equal(model, "haiku");
+  assert.equal(reason, "jev difficulty=0.30(c0.90) specified=0.92 blast=0.20(c0.90) -> haiku");
+});
+
+test("dispatch haiku boundaries are inclusive", () => {
+  assert.equal(mapDispatch(dispatchAnswers({ specified: 0.8, difficulty: 0.6, blast: 0.5 }), thresholds, "haiku").model, "haiku");
+  assert.equal(mapDispatch(dispatchAnswers({ specified: 0.79 }), thresholds, "haiku").model, "sonnet");
+  assert.equal(mapDispatch(dispatchAnswers({ difficulty: 0.61 }), thresholds, "haiku").model, "sonnet");
+  assert.equal(mapDispatch(dispatchAnswers({ blast: 0.51 }), thresholds, "haiku").model, "sonnet");
+});
+
+test("dispatch picks opus by difficulty", () => {
+  assert.equal(mapDispatch(dispatchAnswers({ difficulty: 2.0, specified: 0.1 }), thresholds, "haiku").model, "opus");
+  assert.equal(mapDispatch(dispatchAnswers({ difficulty: 1.99, specified: 0.1 }), thresholds, "haiku").model, "sonnet");
+});
+
+test("dispatch picks opus by blast radius", () => {
+  assert.equal(mapDispatch(dispatchAnswers({ difficulty: 1.0, specified: 0.1, blast: 1.5 }), thresholds, "haiku").model, "opus");
+  assert.equal(mapDispatch(dispatchAnswers({ difficulty: 1.0, specified: 0.1, blast: 1.49 }), thresholds, "haiku").model, "sonnet");
+});
+
+test("dispatch picks sonnet in the middle", () => {
+  assert.equal(mapDispatch(dispatchAnswers({ difficulty: 1.2, specified: 0.5, blast: 1.0 }), thresholds, "haiku").model, "sonnet");
+});
+
+test("low confidence rounds up one tier, capped at opus", () => {
+  assert.equal(mapDispatch(dispatchAnswers({ difficultyConfidence: 0.4 }), thresholds, "haiku").model, "sonnet");
+  assert.equal(mapDispatch(dispatchAnswers({ blastConfidence: 0.49 }), thresholds, "haiku").model, "sonnet");
+  assert.equal(mapDispatch(dispatchAnswers({ difficulty: 1.2, specified: 0.5, blast: 1.0, difficultyConfidence: 0.3 }), thresholds, "haiku").model, "opus");
+  assert.equal(mapDispatch(dispatchAnswers({ difficulty: 2.5, difficultyConfidence: 0.1 }), thresholds, "haiku").model, "opus");
+  assert.equal(mapDispatch(dispatchAnswers({ difficultyConfidence: 0.5 }), thresholds, "haiku").model, "haiku");
+});
+
+test("model floors apply after rounding", () => {
+  assert.equal(mapDispatch(dispatchAnswers(), thresholds, "sonnet").model, "sonnet");
+  assert.equal(mapDispatch(dispatchAnswers(), thresholds, "opus").model, "opus");
+  const floored = mapDispatch(dispatchAnswers(), thresholds, "sonnet");
+  assert.match(floored.reason, /-> sonnet$/);
+});
+
+test("dispatch fallback is sonnet with the floor applied", () => {
+  assert.deepEqual(fallbackDispatch("timeout", "haiku"), { model: "sonnet", reason: "fallback timeout -> sonnet" });
+  assert.deepEqual(fallbackDispatch("no_key", "opus"), { model: "opus", reason: "fallback no_key -> opus" });
+});
+
+test("owner is accepted at or above the minimum confidence", () => {
+  const answers = (confidence) => ({ owner: { type: "choice", choice: "tenonry-vue", confidence } });
+  assert.deepEqual(mapOwner(answers(0.5), thresholds), { owner: "tenonry-vue", confidence: 0.5, accepted: true });
+  assert.equal(mapOwner(answers(0.49), thresholds).accepted, false);
+});
+
+test("risk: opus when risky or wide, sonnet otherwise, opus on fallback", () => {
+  assert.equal(mapRisk(riskAnswers(0.5, 0.2), thresholds).model, "opus");
+  assert.equal(mapRisk(riskAnswers(0.1, 1.5), thresholds).model, "opus");
+  assert.equal(mapRisk(riskAnswers(0.49, 1.49), thresholds).model, "sonnet");
+  assert.equal(mapRisk(BASE_ANSWERS.risk, thresholds).model, "sonnet");
+  assert.equal(fallbackRisk().model, "opus");
+});
+
+test("owner questions list every candidate with its first six globs", () => {
+  const questions = ownerQuestions([{ agent: "tenonry-x", title: "X specialist", owns: ["a", "b", "c", "d", "e", "f", "g"] }]);
+  assert.equal(questions.owner.criteria["tenonry-x"], "X specialist. Owns: a, b, c, d, e, f");
+});
+
+test("model family comes from input.model in any supported shape", () => {
+  assert.equal(currentModelFamily({ model: "claude-opus-5-5" }), "opus");
+  assert.equal(currentModelFamily({ model: "claude-sonnet-5-5[1m]" }), "sonnet");
+  assert.equal(currentModelFamily({ model: "claude-haiku-4-5-20251001" }), "haiku");
+  assert.equal(currentModelFamily({ model: "claude-fable-5-1" }), "fable");
+  assert.equal(currentModelFamily({ model: { id: "claude-haiku-4-5" } }), "haiku");
+  assert.equal(currentModelFamily({ model: { display_name: "Sonnet 5.5" } }), "sonnet");
+  assert.equal(currentModelFamily({ model: "mystery" }), "unknown");
+  assert.equal(currentModelFamily({}), "unknown");
+  assert.equal(currentModelFamily(null), "unknown");
+});
+
+test("model family falls back to the newest model in the transcript tail", () => {
+  const root = makeProject();
+  const transcript = path.join(root, "t.jsonl");
+  const lines = [
+    JSON.stringify({ type: "user", message: { role: "user" } }),
+    JSON.stringify({ type: "assistant", message: { model: "claude-opus-5-5" } }),
+    JSON.stringify({ type: "assistant", message: { model: "<synthetic>" } }),
+    JSON.stringify({ type: "assistant", message: { model: "claude-haiku-4-5-20251001" } }),
+    JSON.stringify({ type: "user", message: { role: "user" } }),
+  ];
+  fs.writeFileSync(transcript, lines.join("\n") + "\n");
+  assert.equal(currentModelFamily({ transcript_path: transcript }), "haiku");
+  assert.equal(currentModelFamily({ model: "", transcript_path: transcript }), "haiku");
+  assert.equal(currentModelFamily({ model: "claude-sonnet-5-5", transcript_path: transcript }), "sonnet");
+  assert.equal(currentModelFamily({ transcript_path: path.join(root, "missing.jsonl") }), "unknown");
+});
+
+test("the transcript fallback reads only the tail of a large file", () => {
+  const root = makeProject();
+  const transcript = path.join(root, "big.jsonl");
+  const filler = JSON.stringify({ type: "user", message: { text: "x".repeat(1000) } }) + "\n";
+  fs.writeFileSync(transcript, JSON.stringify({ message: { model: "claude-opus-5-5" } }) + "\n" + filler.repeat(400) + JSON.stringify({ message: { model: "claude-sonnet-5-5" } }) + "\n");
+  assert.equal(currentModelFamily({ transcript_path: transcript }), "sonnet");
+});
+
+test("runIntake writes route.json from a fixture", async () => {
+  const previous = process.env.TENONRY_JEV_FIXTURE;
+  process.env.TENONRY_JEV_FIXTURE = writeFixture();
+  try {
+    const root = makeProject();
+    const { runId } = newRun(root, "add points");
+    const route = await runIntake(root, runId, "add points", "haiku");
+    assert.deepEqual(readRoute(root, runId), route);
+    assert.equal(route.runId, runId);
+    assert.equal(route.prompt, "add points");
+    assert.equal(route.jev, "ok");
+    assert.equal(route.clarify, "no");
+    assert.equal(route.mainModel.notice, true);
+    assert.deepEqual(route.answers, BASE_ANSWERS.intake);
+  } finally {
+    if (previous === undefined) delete process.env.TENONRY_JEV_FIXTURE;
+    else process.env.TENONRY_JEV_FIXTURE = previous;
+  }
+});

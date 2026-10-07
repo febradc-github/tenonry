@@ -248,3 +248,13 @@ Phase 0 entries use the title `Phase 0: V<n> <item>` and a status of Confirmed, 
 - Context: docs/03 5.5 skips init when the manifest hash and `bin/VERSION` match. If a user deletes `.claude/agents/` or an agent file, a skip would leave the run without agents.
 - Decision: The skip also requires every name in `config.agents` to exist as a file in `.claude/agents/`; otherwise a full init runs and rewrites them.
 - Reason: Self-healing at no cost; a full init is idempotent.
+
+### D-051: Where Jev decision lines are logged
+- Context: docs/03 section 2.5 says every `askJev` call appends a decision line, but the line also carries the resulting `decision` (for example the model), which only the mapping code knows. `calibrate` joins dispatch decisions to outcomes, so the model must be in the line.
+- Decision: `askJev` is the raw, never-throwing client. Every call site uses `decideWithJev`, which calls `askJev`, applies the mapping or the fallback, and appends exactly one line per call (including fallbacks) with the decision. The key never reaches the log because the client never returns it.
+- Reason: One line per call with the full decision, from a single code path.
+
+### D-052: Intake state and routing placement
+- Context: docs/03 section 8.2 puts `runIntake` and `currentModelFamily` in `scripts/lib/routing.mjs`, and section 2.10 puts run creation in `state.mjs`.
+- Decision: As specified. The router calls `state.newRun` before `runIntake`, so a run exists even when Jev fails (route.json then holds the fallback). A prompt whose request is empty or one of `resume|continue|undo|help|status` creates no run. A request that merely begins with such a word ("help the customers...") is a real request.
+- Reason: Matches the spec and keeps passive commands free of side effects.
