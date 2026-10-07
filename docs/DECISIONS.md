@@ -299,3 +299,24 @@ Phase 0 entries use the title `Phase 0: V<n> <item>` and a status of Confirmed, 
 - Context: CLAUDE.md requires Node 18+. The build machine has only Node v26.7.0, and installing another version would change the user's environment outside this repository.
 - Decision: All tests ran on Node v26.7.0. The scripts were reviewed for newer-than-18 APIs (no `toSorted`, `Object.groupBy`, `import.meta.dirname`, `AbortSignal.timeout`, recursive `readdirSync`); they use only `fetch`, `structuredClone`, `Object.hasOwn`, `Array.prototype.at`, and `fs.cpSync`, all available in Node 18. This is recorded as a skipped check in BUILD-REPORT.md.
 - Reason: Hard limit on actions outside the repository; the review is the closest safe substitute.
+
+## Decisions added for revision 0.2.0
+
+Work order: `docs/FIX-0.2.0.md`. Entries start at D-061.
+
+### D-061: Phase 0 (0.2.0): P1 Playwright MCP version and flags
+- Status: Confirmed for the version and the three flags; the default browser and the install command are not in the README and were read from the package itself.
+- Context: F7 pins the review browser server and needs real flag names, the default browser, and its install command.
+- Decision: `npm view @playwright/mcp version` returned `0.0.83` on 2026-10-07. Its README documents `--headless` ("run browser in headless mode, headed by default"), `--isolated` ("keep the browser profile in memory, do not save it to disk"), and `--output-dir <path>`. The design reviewer is pinned to `@playwright/mcp@0.0.83` with those three flags in that order. The README's "Browser installation" section is empty, so two facts come from the published package source (`playwright-core` `tools/mcp`): with no `--browser`, the server launches the Chromium engine with channel `chrome`, which is the Google Chrome installed on the machine; and when the browser is missing, the server's own error says to run `npx @playwright/mcp install-browser <browser>`. The install command constant is therefore `npx @playwright/mcp@0.0.83 install-browser chrome` (pinned so it matches the server version) instead of the fallback `npx playwright install chromium`, which would install a different browser than the one the server launches.
+- Changed: The README states that `--output-dir` applies only to automatically named files and that "files with an explicit name are resolved against the workspace root". The reviewer text in F6.3 asks for explicitly named screenshots, which would therefore land in the project root as untracked files, where they would count as unowned changes for other tasks and make `undo` refuse a dirty tree. The screenshot name in step 4 of the reviewer process therefore carries the directory: `.tenonry/logs/screenshots/<run>-<task>-<screen>-<width>.png`. `--output-dir .tenonry/logs/screenshots` stays, so automatically named files go to the same gitignored directory.
+- Source: `npm view @playwright/mcp@0.0.83 readme`; package tarballs `@playwright/mcp@0.0.83` and `playwright-core@1.64.0-alpha-1790635538000`.
+
+### D-062: Phase 0 (0.2.0): P2 permission rule syntax
+- Status: Confirmed, including the heredoc case by a live check.
+- Decision: Skill frontmatter `allowed-tools` grants tools "without asking permission during the turn that invokes this skill" and accepts a comma-separated string such as `Bash(node *), Bash(git rev-parse *)`. In `permissions.allow`, `Bash(node .tenonry/bin/tenonry.mjs *)` is a valid prefix rule (everything before the first `*` is matched as written, and a trailing ` *` also matches the bare command) and `mcp__playwright` is the documented server-level form. `.claude/settings.local.json` rules apply without the workspace trust step as long as the file is not tracked in git, which is why init adds it to `.gitignore`. The docs say here-docs are not checked as redirect targets but do not say whether a prefix rule matches a command with a heredoc body, so it was tested: in a temporary directory with `permissions.allow: ["Bash(node echo.mjs *)"]`, `claude -p` (2.1.285) ran `node echo.mjs --stdin <<'TENONRY_REQUEST'` with a two-line body containing double quotes, `$dollars`, backticks, `;` and `&&`; `permission_denials` was empty and the body arrived byte for byte. The heredoc form is used as written in F5.
+- Source: https://code.claude.com/docs/en/permissions.md, https://code.claude.com/docs/en/skills.md, live check.
+
+### D-063: Phase 0 (0.2.0): P3 permission denials in JSON output
+- Status: Confirmed.
+- Decision: `claude -p "say ok" --output-format json` returns a `permission_denials` array (empty when nothing was denied). The final smoke test asserts it is empty.
+- Source: Live check with Claude Code 2.1.285.
