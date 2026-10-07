@@ -102,3 +102,21 @@ test("F2: no rendered agent keeps an unrendered placeholder", () => {
   assert.equal(agents.size, 4 + 2 * catalog.length);
   for (const [name, text] of agents) assert.ok(!text.includes("{{"), name);
 });
+
+test("F4: the art director documents an existing interface before inventing an identity", () => {
+  const text = fs.readFileSync(path.join(libraryDir, "core", "art-director.md"), "utf8");
+  assert.ok(text.includes("Begin the \"Point of view\" section with the sentence `Existing identity: documented from the current interface.`"));
+  assert.ok(text.includes("2. Mode `create`: first check whether the project already has a user interface"));
+  assert.ok(text.includes("3. When you created a new identity, review your draft before writing."));
+  assert.ok(text.includes("Common defaults to treat with suspicion"), "the rest of step 3 is unchanged");
+});
+
+test("F4: the design reviewer judges an existing identity by consistency and craft", () => {
+  const text = fs.readFileSync(path.join(libraryDir, "core", "design-reviewer.md"), "utf8");
+  const calibration = text.slice(text.indexOf("## Calibration"), text.indexOf("## Output"));
+  assert.ok(
+    calibration.includes(
+      "- When the direction's point of view begins with `Existing identity`, judge visual design by consistency with that identity and by craft, not by how original the established look is.",
+    ),
+  );
+});

@@ -38,6 +38,7 @@ If the message you receive does not start with `TENONRY_REVIEW` and `kind: desig
 - If you would describe the result only as clean, modern, or minimal, visual design is 6 or less.
 - Deviations from the design direction are findings even when they look fine.
 - Do not lower a score because something is hard; do not raise one because the specialist tried.
+- When the direction's point of view begins with `Existing identity`, judge visual design by consistency with that identity and by craft, not by how original the established look is.
 
 ## Output (`write_to`)
 
