@@ -153,6 +153,10 @@ See section 5.2 for the algorithm. Exports `findPackageRoots(root)`, `detectPack
 
 `checkContract(root, runId)` implements section 4.5. Returns `{ valid, errors: [string], warnings: [string] }`.
 
+### 2.12 `preview.mjs`
+
+`previewStart(root)`, `previewStop(root)`, and `previewCredentials(root)` implement the `preview-start`, `preview-stop`, and `preview-credentials` commands of section 6. `loginAvailable(root)` tells `review-plan` whether to write `login: available` into a design review delegation. Nothing in this module logs or stores a credential.
+
 ## 3. Ownership
 
 ### 3.1 `ownership.json` schema
@@ -315,7 +319,7 @@ On re-init, `routing`, `limits`, `readGuard`, and `outputFilter` are preserved f
 }
 ```
 
-`phase`: `intake`, `planning`, `design`, `contract`, `building`, `final-gate`, `done`, `stopped`. Task `status`: `pending`, `running`, `verifying`, `reviewing`, `done`, `done_with_findings`, `blocked`. Tasks are added to `run.json` when the contract first validates.
+`phase`: `intake`, `planning`, `design`, `contract`, `building`, `final-gate`, `done`, `stopped`. Task `status`: `pending`, `running`, `verifying`, `reviewing`, `done`, `done_with_findings`, `blocked`. Tasks are added to `run.json` when the contract first validates. Commands add a few optional task fields as a run progresses: `plannedReviews` (the reviewer kinds of the current round), `reviews` (the latest `design` and `code` statuses), `unrenderedReason` (set while the latest design status is `unrendered`), `unresolved` (feedback lines kept when a task ends as `done_with_findings`), and `handoffRetries`.
 
 ### 4.4 `contract.json`
 

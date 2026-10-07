@@ -60,7 +60,7 @@ Design goals, in priority order:
 
 ### 2.5 Scripts
 
-`scripts/tenonry.mjs` is a single CLI with subcommands the orchestrator calls. `scripts/init.mjs` performs initialization. `scripts/exec-filter.mjs` wraps noisy commands. `scripts/lib/` holds shared modules (glob, env, jev, routing, ownership, detect, render, git, state, contract). Exact specs are in `docs/03-COMPONENT-SPECS.md`.
+`scripts/tenonry.mjs` is a single CLI with subcommands the orchestrator calls. `scripts/init.mjs` performs initialization. `scripts/exec-filter.mjs` wraps noisy commands. `scripts/lib/` holds shared modules (glob, env, jev, routing, ownership, detect, render, git, state, contract, preview). Exact specs are in `docs/03-COMPONENT-SPECS.md`.
 
 ## 3. Plugin repository layout (what the build produces)
 
