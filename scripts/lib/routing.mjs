@@ -23,7 +23,6 @@ const BLAST_RADIUS_LEVELS = [
 ];
 
 export const tierIndex = (tier) => TIERS.indexOf(tier);
-export const roundUp = (tier) => TIERS[Math.min(tierIndex(tier) + 1, TIERS.length - 1)];
 export const applyFloor = (tier, floor) => (tierIndex(floor) > tierIndex(tier) ? floor : tier);
 export const nextTier = (tier) => TIERS[tierIndex(tier) + 1] ?? null;
 const two = (n) => Number(n).toFixed(2);
@@ -150,12 +149,14 @@ export function mapDispatch(answers, thresholds, floor) {
   let model;
   if (specified.noul >= thresholds.haiku.minFullySpecified && difficulty.score <= thresholds.haiku.maxDifficulty && blast.score <= thresholds.haiku.maxBlastRadius) {
     model = "haiku";
-  } else if (difficulty.score >= thresholds.opus.minDifficulty || blast.score >= thresholds.opus.minBlastRadius) {
+  } else if (difficulty.score >= thresholds.opus.minDifficulty) {
     model = "opus";
   } else {
     model = "sonnet";
   }
-  if (difficulty.confidence < thresholds.roundUpIfConfidenceBelow || blast.confidence < thresholds.roundUpIfConfidenceBelow) model = roundUp(model);
+  // Doubt lifts haiku to sonnet only. Opus is chosen by difficulty, or reached by escalation after failed checks, never by low confidence.
+  const unsure = difficulty.confidence < thresholds.roundUpIfConfidenceBelow || blast.confidence < thresholds.roundUpIfConfidenceBelow;
+  if (unsure && model === "haiku") model = "sonnet";
   model = applyFloor(model, floor);
   const reason = `jev difficulty=${two(difficulty.score)}(c${two(difficulty.confidence)}) specified=${two(specified.noul)} blast=${two(blast.score)}(c${two(blast.confidence)}) -> ${model}`;
   return { model, reason };

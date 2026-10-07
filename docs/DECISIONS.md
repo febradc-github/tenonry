@@ -404,3 +404,19 @@ Work order: `docs/FIX-0.2.0.md`. Entries start at D-061.
 - Decision: The revision is committed on `main` and pushed to `origin/main`. The hard limit stays as written for every other piece of work.
 - Reason: The limit exists so that an unattended build never publishes on its own judgment. An explicit instruction from the repository owner, for this one change, is not that case.
 
+## Decisions added for revision 0.3.1
+
+### D-078: Opus builds only complex tasks
+- Context: The developer reported simple tasks being built on Opus and asked that easy work run on Haiku or Sonnet and only complex work on Opus. The Jev log of a real project showed the cause: a task to create one small formatting module (difficulty 0.52, fully specified 0.90, blast radius 0.67 with confidence 0.34) was mapped to sonnet and then rounded up to opus because the blast-radius confidence was below 0.5.
+- Decision: Two rules that sent a builder to opus without the task being difficult are removed from `mapDispatch`. (1) Low confidence now lifts only a `haiku` choice to `sonnet`; a `sonnet` choice stays. (2) Blast radius no longer chooses `opus`; the knob `opus.minBlastRadius` is retired, ignored by code, and dropped from `config.json` on re-init. `opus.minDifficulty` stays at 2.0, so a task Jev scores as Hard or above is still built on Opus, and escalation after `maxTestRetriesPerTier` failed checks on sonnet still reaches it. Version 0.3.1 so existing projects receive the new script.
+- Details the request left open:
+  1. The threshold was not raised. A first draft moved `opus.minDifficulty` to 2.5; the developer corrected that complex tasks should be on Opus, so Hard stays the boundary.
+  2. Blast radius is still asked. It still keeps wide changes off haiku (`haiku.maxBlastRadius`) and its confidence still lifts haiku to sonnet.
+  3. The code reviewer's model is unchanged: opus when the change is risky or wide (`codeReviewOpus`), and when Jev is unavailable. That is where the risk of a wide change is paid for, and the request was about the implementation.
+  4. `roundUp` was removed from `routing.mjs`; nothing else used it.
+- Reason: Confidence and reach are not difficulty. Sonnet handles an easy task whether or not Jev is sure about it, and a failed attempt costs less than Opus on every uncertain one, because escalation catches the rare miss.
+
+### D-079: Revision 0.3.1 was pushed to `origin/main` on the developer's instruction
+- Context: As in D-077, the hard limits in `CLAUDE.md` say never to push, and the developer's request for this revision said to commit and push to `main` directly.
+- Decision: The revision is committed on `main` and pushed to `origin/main`, over SSH as in 0.3.0 because the HTTPS remote has no stored credentials on this machine. The remote configuration is unchanged.
+- Reason: Same as D-077.

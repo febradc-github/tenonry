@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  TIERS, roundUp, applyFloor, nextTier, mapIntake, fallbackIntake, mapDispatch, fallbackDispatch, mapOwner, mapRisk, fallbackRisk,
+  TIERS, applyFloor, nextTier, mapIntake, fallbackIntake, mapDispatch, fallbackDispatch, mapOwner, mapRisk, fallbackRisk,
   currentModelFamily, runIntake, readRoute, ownerQuestions,
 } from "../scripts/lib/routing.mjs";
 import { DEFAULT_ROUTING } from "../scripts/lib/config.mjs";
@@ -15,9 +15,6 @@ const thresholds = DEFAULT_ROUTING.thresholds;
 
 test("tier helpers", () => {
   assert.deepEqual(TIERS, ["haiku", "sonnet", "opus"]);
-  assert.equal(roundUp("haiku"), "sonnet");
-  assert.equal(roundUp("sonnet"), "opus");
-  assert.equal(roundUp("opus"), "opus");
   assert.equal(applyFloor("haiku", "sonnet"), "sonnet");
   assert.equal(applyFloor("opus", "sonnet"), "opus");
   assert.equal(applyFloor("haiku", "haiku"), "haiku");
@@ -105,21 +102,49 @@ test("dispatch picks opus by difficulty", () => {
   assert.equal(mapDispatch(dispatchAnswers({ difficulty: 1.99, specified: 0.1 }), thresholds, "haiku").model, "sonnet");
 });
 
-test("dispatch picks opus by blast radius", () => {
-  assert.equal(mapDispatch(dispatchAnswers({ difficulty: 1.0, specified: 0.1, blast: 1.5 }), thresholds, "haiku").model, "opus");
-  assert.equal(mapDispatch(dispatchAnswers({ difficulty: 1.0, specified: 0.1, blast: 1.49 }), thresholds, "haiku").model, "sonnet");
+test("0.3.1: a wide blast radius alone never picks opus", () => {
+  for (const blast of [1.0, 1.5, 2.0]) {
+    assert.equal(mapDispatch(dispatchAnswers({ difficulty: 1.0, specified: 0.1, blast }), thresholds, "haiku").model, "sonnet", String(blast));
+    assert.equal(mapDispatch(dispatchAnswers({ difficulty: 0.2, specified: 0.95, blast }), thresholds, "haiku").model, "sonnet", `easy, ${blast}`);
+  }
+  assert.equal(mapDispatch(dispatchAnswers({ difficulty: 2.0, specified: 0.1, blast: 2.0 }), thresholds, "haiku").model, "opus", "a complex task is still opus");
+});
+
+test("0.3.1: a retired opus.minBlastRadius left in a config is ignored", () => {
+  const stale = { ...thresholds, opus: { minDifficulty: 2.0, minBlastRadius: 0.1 } };
+  assert.equal(mapDispatch(dispatchAnswers({ difficulty: 1.0, specified: 0.1, blast: 1.9 }), stale, "haiku").model, "sonnet");
 });
 
 test("dispatch picks sonnet in the middle", () => {
   assert.equal(mapDispatch(dispatchAnswers({ difficulty: 1.2, specified: 0.5, blast: 1.0 }), thresholds, "haiku").model, "sonnet");
 });
 
-test("low confidence rounds up one tier, capped at opus", () => {
+test("0.3.1: low confidence lifts haiku to sonnet and never lifts sonnet to opus", () => {
   assert.equal(mapDispatch(dispatchAnswers({ difficultyConfidence: 0.4 }), thresholds, "haiku").model, "sonnet");
   assert.equal(mapDispatch(dispatchAnswers({ blastConfidence: 0.49 }), thresholds, "haiku").model, "sonnet");
-  assert.equal(mapDispatch(dispatchAnswers({ difficulty: 1.2, specified: 0.5, blast: 1.0, difficultyConfidence: 0.3 }), thresholds, "haiku").model, "opus");
-  assert.equal(mapDispatch(dispatchAnswers({ difficulty: 2.5, difficultyConfidence: 0.1 }), thresholds, "haiku").model, "opus");
   assert.equal(mapDispatch(dispatchAnswers({ difficultyConfidence: 0.5 }), thresholds, "haiku").model, "haiku");
+  assert.equal(mapDispatch(dispatchAnswers({ difficulty: 1.2, specified: 0.5, blast: 1.0, difficultyConfidence: 0.3 }), thresholds, "haiku").model, "sonnet");
+  assert.equal(mapDispatch(dispatchAnswers({ difficulty: 1.2, specified: 0.5, blast: 1.0, difficultyConfidence: 0.01, blastConfidence: 0.01 }), thresholds, "haiku").model, "sonnet");
+  assert.equal(mapDispatch(dispatchAnswers({ difficulty: 2.5, difficultyConfidence: 0.1 }), thresholds, "haiku").model, "opus", "a complex task stays on opus whatever the confidence");
+});
+
+test("0.3.1: the simple task that reached opus in a real run now gets sonnet", () => {
+  // Logged answers for "create one small formatting module": easy, but Jev was unsure about the blast radius.
+  const logged = dispatchAnswers({ difficulty: 0.52, difficultyConfidence: 0.52, specified: 0.9, blast: 0.67, blastConfidence: 0.34 });
+  assert.deepEqual(mapDispatch(logged, thresholds, "haiku"), { model: "sonnet", reason: "jev difficulty=0.52(c0.52) specified=0.90 blast=0.67(c0.34) -> sonnet" });
+});
+
+test("0.3.1: every path to opus needs a complex task", () => {
+  for (const difficulty of [0, 0.5, 1, 1.5, 1.99]) {
+    for (const specified of [0, 0.5, 1]) {
+      for (const blast of [0, 1, 2]) {
+        for (const confidence of [0, 0.3, 0.9]) {
+          const answers = dispatchAnswers({ difficulty, specified, blast, difficultyConfidence: confidence, blastConfidence: confidence });
+          assert.notEqual(mapDispatch(answers, thresholds, "sonnet").model, "opus", JSON.stringify({ difficulty, specified, blast, confidence }));
+        }
+      }
+    }
+  }
 });
 
 test("model floors apply after rounding", () => {

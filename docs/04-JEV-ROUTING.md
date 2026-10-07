@@ -8,7 +8,7 @@ Jev answers narrow typed questions. Tenonry asks four question sets, at four fix
 - Timeout: `config.routing.timeoutMs` (default 8000).
 - Key: `OPENROUTER_API_KEY` from `<project>/.env` only.
 - Thresholds: `config.routing.thresholds` (defaults in `docs/03-COMPONENT-SPECS.md` section 4.1).
-- Tier order: `haiku` < `sonnet` < `opus`. "Round up" means one tier higher, capped at opus. "Apply floor" means `max(tier, modelFloor)`.
+- Tier order: `haiku` < `sonnet` < `opus`. "Round up" means a `haiku` choice becomes `sonnet`; it never produces `opus`. "Apply floor" means `max(tier, modelFloor)`.
 - Every call and every resulting decision is logged (section 7).
 
 ## 2. Shared criteria text
@@ -150,10 +150,12 @@ Questions:
 Mapping, in order:
 
 1. `haiku` when `fully_specified.noul >= haiku.minFullySpecified` and `difficulty.score <= haiku.maxDifficulty` and `blast_radius.score <= haiku.maxBlastRadius`.
-2. Else `opus` when `difficulty.score >= opus.minDifficulty` or `blast_radius.score >= opus.minBlastRadius`.
+2. Else `opus` when `difficulty.score >= opus.minDifficulty`.
 3. Else `sonnet`.
-4. Round up one tier when `difficulty.confidence < roundUpIfConfidenceBelow` or `blast_radius.confidence < roundUpIfConfidenceBelow`.
+4. Round up when `difficulty.confidence < roundUpIfConfidenceBelow` or `blast_radius.confidence < roundUpIfConfidenceBelow`: a `haiku` choice becomes `sonnet`. A `sonnet` choice stays `sonnet`.
 5. Apply the owner's `modelFloor`.
+
+Opus builds only complex tasks. A builder reaches `opus` in two ways: Jev scores the task as Hard or above (step 2), or the task failed its checks `maxTestRetriesPerTier` times on `sonnet` and escalated (`docs/03-COMPONENT-SPECS.md` section 6.2). Low confidence and a wide blast radius never choose `opus` for a builder: neither says the work is difficult, and the risk of a wide change is covered by the code reviewer's model (section 6). No catalog specialist has an `opus` floor.
 
 Reason string returned by `next`: `jev difficulty=<s>(c<conf>) specified=<p> blast=<s>(c<conf>) -> <model>`, numbers to 2 decimals. Fallback: `fallback <reason> -> <model>`.
 
@@ -256,7 +258,7 @@ Low confidence is not a failure: the answer is used and the round-up rule applie
 }
 ```
 
-Tests must include fixtures that exercise every mapping branch: haiku, sonnet, opus by difficulty, opus by blast radius, round-up by low confidence, floors, clarify yes and no, plan yes by need, plan yes by difficulty, plan no, the Haiku notice on and off, owner accepted, owner rejected for low confidence, risky opus, and every fallback reason.
+Tests must include fixtures that exercise every mapping branch: haiku, sonnet, opus by difficulty, sonnet for a wide blast radius, round-up from haiku by low confidence, no round-up from sonnet, floors, clarify yes and no, plan yes by need, plan yes by difficulty, plan no, the Haiku notice on and off, owner accepted, owner rejected for low confidence, risky opus, and every fallback reason.
 
 ## 10. Live check (opt-in)
 

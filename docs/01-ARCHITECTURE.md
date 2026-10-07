@@ -165,7 +165,7 @@ The `library/` directory is deliberately not named `agents/`, so Claude Code doe
 | Next specialist, run order, escalation, which reviewer types apply, stack activation | Code (`tenonry.mjs`, `init.mjs`) |
 | Model per task, owner of an unanticipated file, review risk, ambiguity, whether a request needs a plan | Jev |
 
-Fallbacks: if Jev times out, errors, or no key exists, every request is planned, tasks run on sonnet (respecting model floors), code review runs on opus, and unowned files are assigned by ownership rules alone. If Jev's confidence is low, round up one model tier.
+Fallbacks: if Jev times out, errors, or no key exists, every request is planned, tasks run on sonnet (respecting model floors), code review runs on opus, and unowned files are assigned by ownership rules alone. If Jev's confidence is low, a haiku choice becomes sonnet. A builder runs on opus only when Jev scores its task as Hard or above, or after repeated failed checks on sonnet.
 
 ## 7. Failure policy
 
@@ -193,7 +193,7 @@ Fallbacks: if Jev times out, errors, or no key exists, every request is planned,
 - Only active specialists exist as agents, so descriptions of unused specialists never enter context.
 - The planner, an Opus agent, runs only when Jev says the request needs a plan. Small, clear requests go from the brief straight to the contract and tests.
 - Jev calls happen at fixed points only: one per `/tenonry:run`, one per dispatched task, one per review plan, one per unowned file. Each costs a fraction of a cent.
-- Model floors keep visual work off haiku. Everything else starts at the cheapest tier Jev deems sufficient.
+- Model floors keep visual work off haiku. Everything else starts at the cheapest tier Jev deems sufficient. Opus builds only complex tasks: low confidence and a wide blast radius never send a simple task there.
 - The output filter keeps test and build logs out of context; full logs stay on disk.
 - The read guard keeps lockfiles and build output out of context.
 - Design review loops are capped (3 rounds); code review loops are capped (2 rounds).

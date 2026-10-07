@@ -8,7 +8,7 @@ export const DEFAULT_ROUTING = {
     clarifyIfAmbiguity: 0.6,
     planning: { minNeedsPlan: 0.5, minDifficulty: 2.0, minUi: 0.5 },
     haiku: { minFullySpecified: 0.8, maxDifficulty: 0.6, maxBlastRadius: 0.5 },
-    opus: { minDifficulty: 2.0, minBlastRadius: 1.5 },
+    opus: { minDifficulty: 2.0 },
     roundUpIfConfidenceBelow: 0.5,
     codeReviewOpus: { minRisky: 0.5, minBlastRadius: 1.5 },
     newFileOwnerMinConfidence: 0.5,
@@ -40,6 +40,14 @@ export function mergePreferExisting(defaults, existing) {
     merged[key] = key in defaults ? mergePreferExisting(defaults[key], value) : value;
   }
   return merged;
+}
+
+// `opus.minBlastRadius` was retired in 0.3.1; re-init drops it so the file lists only knobs that are read.
+export function dropRetiredRouting(routing) {
+  const opus = routing?.thresholds?.opus;
+  if (!isPlainObject(opus) || !("minBlastRadius" in opus)) return routing;
+  const { minBlastRadius, ...kept } = opus;
+  return { ...routing, thresholds: { ...routing.thresholds, opus: kept } };
 }
 
 // Reads the project config and fills in every optional knob with its default.

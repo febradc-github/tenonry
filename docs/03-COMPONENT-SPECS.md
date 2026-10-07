@@ -9,7 +9,7 @@ All paths are relative to the plugin root unless marked `<project>`. Every JSON 
 ```json
 {
   "name": "tenonry",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Specialist multi-agent pipeline: Jev-routed models, spec-first tests, single-owner files, design and code reviewers.",
   "author": { "name": "Dan Christian Febra" },
   "keywords": ["agents", "orchestration", "jev", "openrouter", "code-quality", "design"]
@@ -24,7 +24,7 @@ All paths are relative to the plugin root unless marked `<project>`. Every JSON 
   "description": "Local marketplace for the Tenonry plugin.",
   "owner": { "name": "Dan Christian Febra" },
   "plugins": [
-    { "name": "tenonry", "source": "./", "description": "Specialist multi-agent pipeline with Jev routing.", "version": "0.3.0" }
+    { "name": "tenonry", "source": "./", "description": "Specialist multi-agent pipeline with Jev routing.", "version": "0.3.1" }
   ]
 }
 ```
@@ -232,7 +232,7 @@ Two priority bands in the catalog are deliberate. The styling specialists (`css`
 {
   "version": 1,
   "plugin": "tenonry",
-  "pluginVersion": "0.3.0",
+  "pluginVersion": "0.3.1",
   "initializedAt": "<ISO>",
   "packages": [
     { "root": ".", "packageManager": "npm", "specialists": ["laravel", "eloquent", "vue", "tailwind", "html", "php", "nodejs"] }
@@ -250,7 +250,7 @@ Two priority bands in the catalog are deliberate. The styling specialists (`css`
       "clarifyIfAmbiguity": 0.6,
       "planning": { "minNeedsPlan": 0.5, "minDifficulty": 2.0, "minUi": 0.5 },
       "haiku": { "minFullySpecified": 0.8, "maxDifficulty": 0.6, "maxBlastRadius": 0.5 },
-      "opus": { "minDifficulty": 2.0, "minBlastRadius": 1.5 },
+      "opus": { "minDifficulty": 2.0 },
       "roundUpIfConfidenceBelow": 0.5,
       "codeReviewOpus": { "minRisky": 0.5, "minBlastRadius": 1.5 },
       "newFileOwnerMinConfidence": 0.5
@@ -268,7 +268,7 @@ Two priority bands in the catalog are deliberate. The styling specialists (`css`
 }
 ```
 
-On re-init, `routing`, `limits`, `readGuard`, and `outputFilter` are preserved from the existing file (deep merge, existing values win); everything else is regenerated.
+On re-init, `routing`, `limits`, `readGuard`, and `outputFilter` are preserved from the existing file (deep merge, existing values win); everything else is regenerated. One retired knob is dropped on re-init: `routing.thresholds.opus.minBlastRadius`, which stopped choosing the builder's model in 0.3.1 (`docs/04-JEV-ROUTING.md` section 4). Code ignores it when an older file still has it.
 
 ### 4.2 `route.json`
 

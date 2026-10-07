@@ -151,3 +151,11 @@ One change (decision D-076): Jev decides at intake whether a request needs a pla
 - A direct run through the rest of the pipeline (contract, build, review, commit, report): `tests/pipeline.test.mjs`.
 - The run skill's two branches, the test author's direct rule, and defaults reaching an existing config on re-init: `tests/skills.test.mjs`, `tests/agents-render.test.mjs`, and `tests/init.test.mjs`.
 - Version 0.3.0: `tests/skills.test.mjs` and `tests/init.test.mjs`.
+
+## Revision 0.3.1 tests
+
+One change (decision D-078): Opus builds only complex tasks.
+
+- Mapping (a wide blast radius stays on sonnet, low confidence lifts haiku only, a complex task stays on opus, the answers logged for the real simple task that reached opus, a sweep showing no path to opus below the difficulty threshold, a stale `opus.minBlastRadius` ignored): `tests/routing.test.mjs`.
+- Re-init drops the retired knob and keeps an edited `opus.minDifficulty`: `tests/init.test.mjs`.
+- Version 0.3.1 and the changelog: `tests/skills.test.mjs` and `tests/init.test.mjs`.

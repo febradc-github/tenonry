@@ -171,3 +171,38 @@ One change, requested directly by the developer: Jev decides whether a request n
 
 D-076 (Jev decides whether a request needs a plan) and D-077 (pushed on the developer's instruction). Full text in `docs/DECISIONS.md`.
 
+## Revision 0.3.1
+
+One change, requested directly by the developer: Opus builds only complex tasks. One commit, `fix(0.3.1): Opus builds only complex tasks`, pushed to `origin/main` on the developer's instruction (D-079).
+
+### What changed
+
+- **The cause, from a real run.** In the Jev log of a project using 0.3.0, a task to create one small formatting module (difficulty 0.52) was built on Opus. Jev's answer mapped to sonnet, then the low confidence of its blast-radius answer (0.34) rounded sonnet up to opus.
+- **Low confidence** now lifts a haiku choice to sonnet and nothing else.
+- **Blast radius** no longer chooses opus for a builder. `routing.thresholds.opus.minBlastRadius` is retired: ignored by code and dropped from `config.json` on re-init.
+- **Unchanged:** a task Jev scores as Hard or above (`opus.minDifficulty`, 2.0) is built on Opus; a task that fails its checks twice on Sonnet escalates to Opus; the code reviewer's model follows risk and reach as before.
+- **Version 0.3.1**, so the next `/tenonry:run` in an existing project refreshes its scripts.
+
+### Test results
+
+- `node --test`: **463 tests, 462 passed, 0 failed, 1 skipped** across 32 test files. The one skip is the live Jev test. Five tests are net new.
+- `node scripts/tenonry.mjs catalog-check`: passes; the catalog is untouched.
+- `claude plugin validate .` and `claude plugin validate . --strict`: both pass (Claude Code 2.1.285).
+- Existing tests changed because the behavior changed on purpose: "dispatch picks opus by blast radius" and "low confidence rounds up one tier, capped at opus" were replaced by tests of the new rules, the `roundUp` helper and its assertions were removed, and the version assertions say 0.3.1.
+
+### Skipped or unverified checks
+
+| Check | Why | What stands in for it |
+|---|---|---|
+| Live Jev call | No `.env` with `OPENROUTER_API_KEY` at the repository root | The mapping is plain code over Jev's answers, tested with fixtures, including the answers logged in the real run that showed the problem |
+| A real `/tenonry:run <request>` | Token cost | The whole-pipeline simulation in `tests/pipeline.test.mjs` |
+
+### Things worth knowing
+
+- **A first draft was wrong and was corrected.** It raised `opus.minDifficulty` to 2.5, which would have kept Hard tasks on Sonnet. The developer clarified that complex tasks belong on Opus, so the threshold stays at 2.0 and only the two rules that ignored difficulty were removed (D-078, point 1).
+- **What "complex" means is Jev's difficulty score.** If Jev scores a task you consider simple at 2.0 or more, it is built on Opus. The dispatch lines in `.tenonry/logs/jev-decisions.jsonl` show each score, and `opus.minDifficulty` moves the boundary.
+
+### New decisions
+
+D-078 (Opus builds only complex tasks) and D-079 (pushed on the developer's instruction). Full text in `docs/DECISIONS.md`.
+

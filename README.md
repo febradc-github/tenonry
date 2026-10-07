@@ -82,7 +82,7 @@ Each finished task becomes one local commit named `tenonry(<task>): <title>`. Te
 
 `.tenonry/config.json` holds knobs you can edit; they survive refreshes:
 
-- `routing.thresholds`: when Jev's answers send a task to Haiku, Sonnet, or Opus, when to ask you questions, and when a request is planned (`planning`: raise `minNeedsPlan` to skip the plan more often, set it to 0 to plan every request)
+- `routing.thresholds`: when Jev's answers send a task to Haiku, Sonnet, or Opus (`opus.minDifficulty`: a task at or above it is built on Opus; raise it to use Opus less), when to ask you questions, and when a request is planned (`planning`: raise `minNeedsPlan` to skip the plan more often, set it to 0 to plan every request)
 - `limits`: parallel tasks, retries per model, and review rounds
 - `readGuard`: extra paths agents may not read, or paths to allow
 - `outputFilter`: how many lines of test output reach the model, and extra commands to filter
@@ -102,6 +102,12 @@ After about 20 tasks, `node .tenonry/bin/tenonry.mjs calibrate` compares Jev's c
 Delete `.claude/agents/tenonry-*.md` and the `.tenonry/` directory. Then uninstall the plugin with `claude plugin uninstall tenonry`.
 
 ## Changelog
+
+### 0.3.1
+
+Updating to 0.3.1 needs nothing from you: the next `/tenonry:run` in a project notices the new plugin version and re-renders that project's agents, rubrics, and scripts.
+
+- Opus builds only complex tasks. A simple task no longer lands on Opus because Jev was unsure or because the change touches shared code; easy work stays on Haiku or Sonnet. A task that keeps failing its tests on Sonnet is still retried on Opus.
 
 ### 0.3.0
 
