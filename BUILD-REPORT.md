@@ -68,3 +68,69 @@ Each entry has its full context and reason in `docs/DECISIONS.md`.
 - **D-058: Live Jev check skipped**: The live call to `POST /api/alpha/decisions` was not made. The client, request shape, pinned model, timeout, error mapping, and logging are tested against a local `node:http` server and fixtures (tests/jev.test.mjs). The endpoint, body, and response shape...
 - **D-059: Symlink-safe path comparison in the guards**: The guards use `paths.relResolved`: the lexical relative path when it is inside the project, otherwise the same comparison after resolving symlinks on the project root and on the deepest existing ancestor of the target (the target itself need not exist)....
 - **D-060: Node 18 compatibility is checked by API review only**: All tests ran on Node v26.7.0. The scripts were reviewed for newer-than-18 APIs (no `toSorted`, `Object.groupBy`, `import.meta.dirname`, `AbortSignal.timeout`, recursive `readdirSync`); they use only `fetch`, `structuredClone`, `Object.hasOwn`,...
+
+## Revision 0.2.0
+
+Work order: `docs/FIX-0.2.0.md`. Twelve fixes, each committed separately as `fix(0.2.0): <id> <summary>`, plus a Phase 0 commit. Nothing was pushed.
+
+### What changed
+
+- **F1** Builders may run their framework's own generators and migration tools for files they own; ad hoc shell edits stay forbidden.
+- **F2** Builders verify with their own task's tests only; `{{verify}}` renders `task tests`, `typecheck`, and `lint` lines and never the project-wide test command.
+- **F3** `css`, `tailwind`, `sass`, and `css-in-js` are at priority 75 and `angular` at 66, so stylesheets go to the styling specialist and Angular component templates to Angular. New `angular-scss` fixture.
+- **F4** On an existing app the art director documents the current identity and keeps it; the design reviewer judges such an identity by consistency and craft.
+- **F5** Fewer permission prompts: `allowed-tools` on the run and clarify skills, no `--project "$PWD"`, requests and briefs through `new-run --prompt-stdin` and `write-brief`, and two allow rules that init adds to `.claude/settings.local.json`.
+- **F6** `preview-start`, `preview-stop`, and `preview-credentials`: Tenonry starts and stops the preview itself, and the design reviewer can sign in with an optional local test account from `.env`.
+- **F7** A design review that did not render the page is `unrendered`: it never passes, never starts a fix round, ends the task as `done_with_findings`, and adds one attention note. The Playwright server is pinned to 0.0.83 with `--headless`, `--isolated`, and `--output-dir`.
+- **F8** `django`, `fastapi`, and `flask` supersede `python`.
+- **F9** Code reviewers of frontend and 3d specialists check UI rules U1 to U5; code review delegations for UI tasks carry the design direction and brief.
+- **F10** Two design scoring profiles, `showcase` and `product`, in the brief, the rubric, and `review-status`.
+- **F11** `tests/jev-live.test.mjs`, an opt-in single live call to Jev.
+- **F12** Version 0.2.0, `node --test` everywhere, README changelog, architecture and build-plan notes.
+
+### Test results
+
+- `node --test`: **443 tests, 442 passed, 0 failed, 1 skipped** across 32 test files (about 38 seconds), the same on two consecutive runs. The one skip is the live Jev test.
+- `node scripts/tenonry.mjs catalog-check`: passes (24 frontend, 1 3d, 23 backend, 22 data); `library/catalog.json` is still byte-identical to `docs/05`.
+- `claude plugin validate .` and `claude plugin validate . --strict`: both pass (Claude Code 2.1.285).
+- Existing tests changed because the behavior changed on purpose (each named in its commit message): the rendered `- test:` line (F2), the `login:` line in design delegations (F6), the old unrendered-pass test and the design feedback wording (F7), `python` active in the `django` fixture (F8), no design lines in a UI task's code review (F9), and version 0.1.0 (F12).
+
+### Phase 0 results
+
+| ID | Result | Detail |
+|---|---|---|
+| P1 | Confirmed, with one adaptation | `@playwright/mcp` 0.0.83; `--headless`, `--isolated`, `--output-dir` are documented. The default browser (installed Google Chrome) and the install command (`npx @playwright/mcp@0.0.83 install-browser chrome`) are not in the README and were read from the package source. Adaptation: `--output-dir` applies only to automatically named files, so the reviewer names screenshots with the `.tenonry/logs/screenshots/` directory (D-061) |
+| P2 | Confirmed | Rule syntax confirmed in the docs. The heredoc case was confirmed by a live check: a prefix rule matched `node ... <<'TENONRY_REQUEST'` with quotes, `$`, backticks, `;` and `&&` in the body, with no denial (D-062). No approval caveat is needed |
+| P3 | Confirmed | `claude -p --output-format json` returns `permission_denials` (D-063) |
+
+### Smoke test (Claude Code 2.1.285, project scope, temporary copy of `laravel-vue`)
+
+- Install from this repository: plugin listed as 0.2.0, enabled.
+- `claude -p "/tenonry:init" --output-format json`: `.claude/settings.local.json` contains both rules; `permission_denials` is empty (0.1.0 had one denial here); 18 agents written.
+- `claude -p "/tenonry:run status" --output-format json`: printed `No Tenonry runs yet. Start one with /tenonry:run <what you want>.`; `permission_denials` is empty.
+- `claude -p "/tenonry:run help"`: printed the help block.
+- Uninstalled, marketplace removed, temporary copy deleted. No step was skipped. `/tenonry:run <request>` was not run, as instructed.
+
+### Live Jev check
+
+Skipped: there is no `.env` with `OPENROUTER_API_KEY` at the repository root. `TENONRY_LIVE=1 node --test tests/jev-live.test.mjs` was run and skipped with `no OPENROUTER_API_KEY in the repository .env`. With a key, that one command makes the call and prints the answers and cost.
+
+### Skipped or unverified checks
+
+| Check | Why | What stands in for it |
+|---|---|---|
+| Live Jev call | No API key on the build machine | Local `node:http` stand-in and fixtures; the opt-in live test is ready |
+| A real `/tenonry:run <request>`, including a real design review with the pinned browser, sign-in, and screenshots | The work order forbids it in the smoke test (token cost) | Unit tests for the preview commands (real processes), review status, and delegations; the whole-pipeline simulation |
+| Node 18 | Only Node v26.7.0 is installed (D-060) | API review; the new code uses `fetch`, `spawn`, and `process.kill` only |
+
+### Things worth knowing
+
+- **Where the reviewer text differs from the work order (one place).** Step 4 of the design reviewer process names screenshots `.tenonry/logs/screenshots/<run>-<task>-<screen>-<width>.png` instead of a bare file name, because Playwright MCP 0.0.83 saves explicitly named files in the project root, where they would count as stray changes and block `undo` (D-061).
+- **One deliberate deviation in init.** A `settings.local.json` that cannot be merged into (invalid JSON or wrong types) is left untouched with the specified warning, but does not force a full init on every run (D-068).
+- **`preview-stop` is stricter than specified.** The pid file also stores the process start time, and a process is signalled only when both match, so a recycled pid is never killed (D-069).
+- **One red commit.** The first F12 commit (`087ee67`) contained a new test that failed (it treated `node --test tests/jev-live.test.mjs` in the README as the forbidden directory form). The next commit (`a8eb401`) corrects the test. History was not rewritten.
+- **Commit trailers.** Commits in this revision name Claude Opus 5.5, the model the session was switched to before the work started.
+
+### New decisions
+
+D-061 to D-063 (Phase 0: P1, P2, P3), D-064 (F1), D-065 (F2), D-066 (F3), D-067 (F4), D-068 (F5), D-069 (F6), D-070 (F7), D-071 (F8), D-072 (F9), D-073 (F10), D-074 (F11), D-075 (F12). Full text in `docs/DECISIONS.md`.
