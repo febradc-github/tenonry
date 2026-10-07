@@ -1,5 +1,7 @@
 # Tenonry
 
+![The Tenonry workshop: an architect, an art director, and a gauge maker plan the piece, craftspeople build it at their own benches, inspection checks it, and dispatch routes the work](assets/workshop.png)
+
 Tenonry is a Claude Code plugin that turns one request into planned, tested, reviewed, and committed work. It splits the job between narrow specialist agents that each own their own files, and it uses Jev, a cheap decision model on OpenRouter, to pick which Claude model does each piece.
 
 ## Quick start
