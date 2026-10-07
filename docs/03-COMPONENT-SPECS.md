@@ -172,6 +172,8 @@ See section 5.2 for the algorithm. Exports `findPackageRoots(root)`, `detectPack
 
 For each active specialist in each package, for each glob in `owns`: glob is `g` when the package root is `.`, otherwise `<pkgRoot>/<g>`. Owner `tenonry-<id>`, priority from the catalog, source `catalog:<id>`.
 
+Two priority bands in the catalog are deliberate. The styling specialists (`css`, `tailwind`, `sass`, `css-in-js`) sit at 75, above every framework directory glob, so a stylesheet always belongs to the active styling specialist wherever it lives (`app/globals.css` in Next.js, `app/tailwind.css` in Remix, `*.component.scss` in Angular). Their globs match only style files and style configs, so nothing else moves. `angular` sits at 66, one above `html` (65), so Angular component templates (`*.component.html`) go to the specialist that knows Angular's template syntax while other HTML files stay with `html`.
+
 ### 3.3 System rules (always present, in this order)
 
 | Glob | Owner | Priority |

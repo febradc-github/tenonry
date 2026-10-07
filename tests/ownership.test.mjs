@@ -112,3 +112,46 @@ test("isBuilderAgent excludes core and reviewer agents", () => {
     assert.equal(isBuilderAgent(name), false);
   }
 });
+
+// F3: styling specialists own every stylesheet; Angular owns its component templates.
+const ownerWith = (specialists, relPath) => resolveOwner([...systemRules(), ...testRules(), ...catalogRules([{ root: ".", specialists }], catalog)], relPath)?.owner;
+
+const F3_CASES = [
+  [["nextjs", "tailwind", "prisma", "typescript", "nodejs"], "app/globals.css", "tenonry-tailwind"],
+  [["nextjs", "tailwind", "prisma", "typescript", "nodejs"], "components/PointsCard.module.css", "tenonry-tailwind"],
+  [["nextjs", "tailwind", "prisma", "typescript", "nodejs"], "components/PointsCard.tsx", "tenonry-nextjs"],
+  [["remix", "tailwind", "typescript", "nodejs"], "app/tailwind.css", "tenonry-tailwind"],
+  [["remix", "tailwind", "typescript", "nodejs"], "app/routes/loyalty.tsx", "tenonry-remix"],
+  [["angular", "sass", "html", "typescript", "nodejs"], "src/app/points/points.component.html", "tenonry-angular"],
+  [["angular", "sass", "html", "typescript", "nodejs"], "src/app/points/points.component.scss", "tenonry-sass"],
+  [["angular", "sass", "html", "typescript", "nodejs"], "src/index.html", "tenonry-html"],
+  [["react", "css-in-js", "typescript", "nodejs"], "src/components/Card.styles.ts", "tenonry-css-in-js"],
+  [["laravel", "eloquent", "php", "vue", "tailwind", "html", "nodejs"], "resources/css/app.css", "tenonry-tailwind"],
+];
+
+for (const [specialists, file, expected] of F3_CASES) {
+  test(`F3: ${file} with ${specialists[0]} belongs to ${expected}`, () => {
+    assert.equal(ownerWith(specialists, file), expected);
+  });
+}
+
+test("F3: catalog priorities for styling specialists and Angular", () => {
+  const priority = Object.fromEntries(catalog.map((spec) => [spec.id, spec.priority]));
+  assert.deepEqual([priority.css, priority.tailwind, priority.sass, priority["css-in-js"], priority.angular, priority.html], [75, 75, 75, 75, 66, 65]);
+});
+
+test("F3: the angular-scss fixture resolves its files through a real init", () => {
+  const root = fixtureCopy("angular-scss");
+  const out = runInit(root).json;
+  for (const id of ["angular", "sass", "html", "typescript", "nodejs"]) assert.ok(out.active.includes(id), id);
+  assert.equal(ownerIn(root, "src/app/points/points.component.html"), "tenonry-angular");
+  assert.equal(ownerIn(root, "src/app/points/points.component.scss"), "tenonry-sass");
+  assert.equal(ownerIn(root, "src/app/points/points.component.ts"), "tenonry-angular");
+  assert.equal(ownerIn(root, "src/styles.scss"), "tenonry-sass");
+  assert.equal(ownerIn(root, "src/index.html"), "tenonry-html");
+  assert.equal(ownerIn(root, "angular.json"), "tenonry-angular");
+});
+
+test("F3: without a styling specialist, Angular still owns its component styles", () => {
+  assert.equal(ownerWith(["angular", "html", "typescript", "nodejs"], "src/app/points/points.component.scss"), "tenonry-angular");
+});

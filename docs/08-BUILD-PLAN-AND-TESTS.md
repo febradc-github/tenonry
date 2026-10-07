@@ -44,6 +44,7 @@ Fixtures under `tests/fixtures/` (minimal files only, no installed dependencies)
 | `go-api` | `go.mod`, `cmd/api/main.go`, `internal/orders/service.go` | go |
 | `flutter-app` | `pubspec.yaml` with `flutter:`, `lib/main.dart` | flutter |
 | `three-landing` | `package.json` (three, vite, scripts.dev), `src/scene/hero.ts`, `index.html` | 3d, html, nodejs, and the design reviewer agent rendered |
+| `angular-scss` (added in 0.2.0) | `package.json` (@angular/core, typescript, sass), `angular.json`, `src/app/points/points.component.{ts,html,scss}`, `src/styles.scss`, `src/index.html` | angular, sass, html, typescript, nodejs |
 
 Tests:
 - Detection results per fixture, including supersession and package roots.

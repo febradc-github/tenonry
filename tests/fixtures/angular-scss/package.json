@@ -1,0 +1,7 @@
+{
+  "name": "points-admin",
+  "private": true,
+  "scripts": { "start": "ng serve" },
+  "dependencies": { "@angular/core": "^20.0.0" },
+  "devDependencies": { "sass": "^1.80.0", "typescript": "^5.6.0" }
+}

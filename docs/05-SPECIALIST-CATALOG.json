@@ -8,7 +8,7 @@
       "title": "CSS specialist",
       "detect": { "files": ["**/*.css"] },
       "owns": ["**/*.css"],
-      "priority": 40,
+      "priority": 75,
       "supersedes": [],
       "modelFloor": "sonnet",
       "idioms": [
@@ -113,7 +113,7 @@
       "title": "Angular specialist",
       "detect": { "npm": ["@angular/core"] },
       "owns": ["src/app/**", "**/*.component.ts", "**/*.component.html", "**/*.component.scss", "**/*.component.css", "**/*.service.ts", "**/*.module.ts", "angular.json"],
-      "priority": 60,
+      "priority": 66,
       "supersedes": [],
       "modelFloor": "sonnet",
       "idioms": [
@@ -328,7 +328,7 @@
       "title": "Tailwind CSS specialist",
       "detect": { "npm": ["tailwindcss", "@tailwindcss/vite", "@tailwindcss/postcss"] },
       "owns": ["tailwind.config.*", "**/*.css"],
-      "priority": 45,
+      "priority": 75,
       "supersedes": ["css"],
       "modelFloor": "sonnet",
       "idioms": [
@@ -348,7 +348,7 @@
       "title": "Sass specialist",
       "detect": { "npm": ["sass", "node-sass"], "files": ["**/*.scss", "**/*.sass"] },
       "owns": ["**/*.scss", "**/*.sass"],
-      "priority": 50,
+      "priority": 75,
       "supersedes": [],
       "modelFloor": "sonnet",
       "idioms": [
@@ -367,7 +367,7 @@
       "title": "CSS-in-JS specialist",
       "detect": { "npm": ["styled-components", "@emotion/react", "@emotion/styled", "@vanilla-extract/css", "@stitches/react"] },
       "owns": ["**/*.styles.{ts,tsx,js,jsx}", "**/styles.{ts,tsx,js,jsx}", "**/styled.{ts,tsx,js,jsx}", "**/*.css.ts", "**/theme.{ts,js}"],
-      "priority": 60,
+      "priority": 75,
       "supersedes": [],
       "modelFloor": "sonnet",
       "idioms": [
