@@ -25,6 +25,7 @@ You are the Tenonry orchestrator. The user's input is: $ARGUMENTS
 Print each line when its event happens:
 
 - `Setting up Tenonry for this project...` then `Ready: <n> specialists (<ids, comma-separated>).`
+- `New project: starting a <starter title>.`
 - `Tip: add OPENROUTER_API_KEY to your .env for smarter model routing. Using defaults for now.` (only when `state.notices.jevKeyMissing` is false; then run `tenonry.mjs notice-shown jevKeyMissing`)
 - `Tip: Tenonry coordinates more reliably on Sonnet. Continuing on Haiku.` (when `route.mainModel.notice` is true)
 - `This is a question, so no code will change. Answering directly.`
@@ -85,7 +86,9 @@ Setup is automatic. Optional: add OPENROUTER_API_KEY to .env for smarter model r
 1. `git rev-parse --is-inside-work-tree` fails: print `Tenonry needs a git repository. Run git init and commit your files, then try again.` and stop.
 2. Run `node "<plugin root>/scripts/init.mjs" --if-changed` from the project directory.
    - `ok: false`: print `Setup failed: <error>.` and stop.
-   - `skipped: false`: print the two setup progress lines.
+   - `skipped: false`: print `Setting up Tenonry for this project...`.
+   - `empty: true`: the project has no code Tenonry recognizes yet, so it starts from a starter. From `starters`, choose the one the request names, otherwise the one whose `fits` matches the request best. If the request names a framework or language that no starter covers, print `Tenonry cannot start a <name> project in an empty folder yet. Create the project with that framework's own new-project command, commit it, then run /tenonry:run again.` and stop. Otherwise run `node "<plugin root>/scripts/init.mjs" --starter <id>` and print `New project: starting a <title>.` Use its result from here on, but treat `agentsDirCreated` as true if either result says so.
+   - `skipped: false`, or a starter was applied: print `Ready: <n> specialists (<ids, comma-separated>).`
    - `jevKey: false`: print the key tip if it has not been shown.
 3. If `agentsDirCreated` is true: save the request by passing it verbatim through a quoted heredoc: `node .tenonry/bin/tenonry.mjs new-run --prompt-stdin <<'TENONRY_REQUEST'`, then the request on the following lines, then a line containing only `TENONRY_REQUEST`. Then run `tenonry.mjs restart-pending true`, print `Tenonry is set up. Restart Claude Code once so it can load the new agents, then type /tenonry:run to continue.` and stop.
 

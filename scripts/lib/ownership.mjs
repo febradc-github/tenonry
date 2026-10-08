@@ -13,6 +13,11 @@ const TEST_GLOBS = [
 
 const rule = (glob, owner, priority, source = "system") => ({ glob, owner, priority, source });
 
+// A lockfile is written by the package manager when a task adds a dependency, so it goes with that task.
+// The ownership guard still blocks editing one by hand: its owner stays `none` (docs/03 section 6.3).
+const LOCKFILE_NAMES = new Set(LOCKFILES.split(","));
+export const isLockfile = (relPath) => LOCKFILE_NAMES.has(path.posix.basename(relPath));
+
 export function systemRules() {
   const none = (glob) => rule(glob, "none", 1100);
   return [

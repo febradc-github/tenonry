@@ -5,7 +5,8 @@ import { parseArgs } from "./lib/args.mjs";
 import { printResult, readJson, writeJsonAtomic } from "./lib/json.mjs";
 import { pluginRoot } from "./lib/paths.mjs";
 import { loadCatalog } from "./lib/catalog.mjs";
-import { detectAll, manifestHash } from "./lib/detect.mjs";
+import { detectAll, manifestHash, applySupersession } from "./lib/detect.mjs";
+import { starterById, starterChoices } from "./lib/starter.mjs";
 import { detectPreview, verifyEntries } from "./lib/stack.mjs";
 import { buildOwnership } from "./lib/ownership.mjs";
 import { renderAgents, agentNames } from "./lib/agents.mjs";
@@ -65,8 +66,18 @@ function withPermissions(summary, permissions) {
   return summary;
 }
 
+// `empty` means no builder exists yet, so the run skill must pick a starter (docs/03 section 5.6).
+function starterFields(active, starter) {
+  const empty = active.length === 0;
+  return { empty, starter: starter?.id ?? null, ...(empty ? { starters: starterChoices() } : {}) };
+}
+
 function skippedResult(root) {
-  return { ok: true, skipped: true, agentsDirCreated: false, jevKey: Boolean(openRouterKey(root)) };
+  const config = readJson(configPath(root), {});
+  return {
+    ok: true, skipped: true, agentsDirCreated: false, jevKey: Boolean(openRouterKey(root)),
+    ...starterFields(config.activeSpecialists ?? [], config.starter),
+  };
 }
 
 // True when nothing relevant changed since the last full init (docs/03 section 5.5).
@@ -153,30 +164,45 @@ function removeStaleAgents(root, keep) {
   return removed;
 }
 
-function ensureGitignore(root) {
+// A starter adds its stack's generated directories, so installing dependencies never floods git status.
+function ensureGitignore(root, extraLines = []) {
   const file = path.join(root, ".gitignore");
   const current = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
   const present = new Set(current.split(/\r?\n/).map((line) => line.trim()));
-  const missing = GITIGNORE_LINES.filter((line) => !present.has(line));
+  const missing = [...new Set([...GITIGNORE_LINES, ...extraLines])].filter((line) => !present.has(line));
   if (missing.length === 0) return;
   const lines = present.has("# tenonry") ? missing : ["# tenonry", ...missing];
   const separator = current === "" || current.endsWith("\n") ? "" : "\n";
-  fs.writeFileSync(file, `${current}${separator}${current === "" ? "" : "\n"}${lines.join("\n")}\n`);
+  // Lines added to a block Tenonry wrote last stay in that block, without a blank line before them.
+  const last = current.trimEnd().split(/\r?\n/).at(-1)?.trim() ?? "";
+  const continues = present.has("# tenonry") && (last === "# tenonry" || GITIGNORE_LINES.includes(last));
+  fs.writeFileSync(file, `${current}${separator}${current === "" || continues ? "" : "\n"}${lines.join("\n")}\n`);
 }
 
-export function runInit({ root, dryRun = false, ifChanged = false }) {
+export function runInit({ root, dryRun = false, ifChanged = false, starter: starterId }) {
   if (Number(process.versions.node.split(".")[0]) < MIN_NODE_MAJOR) return { ok: false, error: "node_too_old", fatal: true };
   const pluginDir = pluginRoot();
   if (!pluginDir) return { ok: false, error: "plugin_library_not_found", fatal: true };
+  const requested = starterId === undefined ? null : starterById(starterId);
+  if (starterId !== undefined && !requested) return { ok: false, error: `unknown_starter: ${starterId}` };
 
   const version = pluginVersion(pluginDir);
   const hash = manifestHash(root, version);
-  if (ifChanged && isUpToDate(root, version, hash)) return skippedResult(root);
+  if (ifChanged && !requested && isUpToDate(root, version, hash)) return skippedResult(root);
 
   const gitRepo = isGitRepo(root);
   const catalog = loadCatalog(path.join(pluginDir, "library", "catalog.json"));
+  const existing = readJson(configPath(root), {});
   const detected = detectAll(root, catalog);
-  const packages = detected.packages.map(({ root: pkgRoot, packageManager, specialists, files }) => ({ root: pkgRoot, packageManager, specialists, files }));
+  // A starter stands in for detection only while detection finds nothing; real files always win.
+  const nothingDetected = detected.packages.every((pkg) => pkg.specialists.length === 0);
+  const starter = nothingDetected ? (requested ?? starterById(existing.starter?.id)) : null;
+  const packages = detected.packages.map(({ root: pkgRoot, packageManager, specialists, files }) => ({
+    root: pkgRoot,
+    packageManager,
+    specialists: starter && pkgRoot === "." ? applySupersession(starter.specialists, catalog) : specialists,
+    files,
+  }));
   const verify = packages.flatMap((pkg) => verifyEntries(root, pkg));
   const preview = detectPreview(root, packages);
   const publicPackages = packages.map(({ root: pkgRoot, packageManager, specialists }) => ({ root: pkgRoot, packageManager, specialists }));
@@ -185,17 +211,17 @@ export function runInit({ root, dryRun = false, ifChanged = false }) {
   const rendered = renderAgents({ libraryDir: path.join(pluginDir, "library"), catalog, packages: publicPackages, verify });
 
   const warnings = [...detected.warnings];
+  if (requested && !starter) warnings.push(`the project already has a stack, so the starter ${requested.id} was not applied`);
   if (!gitRepo) warnings.push("not a git repository: /tenonry:run needs git for checkpoints and undo");
 
   const agentsDirCreated = !fs.existsSync(agentsDirOf(root));
   const summary = {
     ok: true, gitRepo, packages: publicPackages, active, agentsWritten: [...rendered.keys()], agentsRemoved: [],
     agentsDirCreated, verify, preview, jevKey: Boolean(openRouterKey(root)), warnings, skipped: false, manifestHash: hash,
-    permissionsAdded: false,
+    permissionsAdded: false, ...starterFields(active, starter),
   };
   if (dryRun) return { ...withPermissions(summary, ensurePermissionRules(root, { write: false })), dryRun: true };
 
-  const existing = readJson(configPath(root), {});
   writeJsonAtomic(configPath(root), {
     version: 1,
     plugin: "tenonry",
@@ -212,6 +238,7 @@ export function runInit({ root, dryRun = false, ifChanged = false }) {
     outputFilter: mergePreferExisting(DEFAULT_OUTPUT_FILTER, existing.outputFilter),
     codebaseMap: mergePreferExisting(DEFAULT_CODEBASE_MAP, existing.codebaseMap),
     manifestHash: hash,
+    ...(starter ? { starter: { id: starter.id, title: starter.title, setup: starter.setup } } : {}),
   });
   writeJsonAtomic(path.join(root, ".tenonry", "ownership.json"), buildOwnership(publicPackages, catalog));
   installBin(root, pluginDir, version);
@@ -220,7 +247,7 @@ export function runInit({ root, dryRun = false, ifChanged = false }) {
   summary.agentsWritten = written;
   summary.agentsRemoved = removeStaleAgents(root, new Set(agents));
   summary.warnings.push(...agentWarnings);
-  ensureGitignore(root);
+  ensureGitignore(root, starter?.ignore ?? []);
   return withPermissions(summary, ensurePermissionRules(root, { write: true }));
 }
 
@@ -231,7 +258,7 @@ function main() {
     printResult({ ok: false, error: "project_not_found" });
     return 1;
   }
-  const result = runInit({ root, dryRun: Boolean(flags["dry-run"]), ifChanged: Boolean(flags["if-changed"]) });
+  const result = runInit({ root, dryRun: Boolean(flags["dry-run"]), ifChanged: Boolean(flags["if-changed"]), starter: flags.starter });
   printResult(result);
   return result.ok === false ? 1 : 0;
 }

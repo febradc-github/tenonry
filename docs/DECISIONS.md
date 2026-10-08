@@ -532,3 +532,51 @@ The developer asked to take the token-saving idea of ponytail (https://github.co
 - Context: Version, documents, tests.
 - Decision: Version 0.5.0 in `plugin.json`, `marketplace.json`, `package.json`, and the docs/03 examples, so existing projects re-render their agents and rubric on the next run. The `docs/06` and `docs/07` copies match the shipped texts. The two `hooks.json` tests now expect five hooks and the `SubagentStart` matcher. The revision was committed on `main` and pushed to `origin/main` on the developer's instruction (see D-077).
 - Reason: One version everywhere, and the documents stay the source of truth.
+
+## Decisions added for revision 0.6.0
+
+The developer ran `/tenonry:run` with a weather dashboard request in an empty git repository. Setup found no stack, so no builder specialist existed, and the run stopped at the contract because the test author had no owner for any file. The developer asked for a fix.
+
+### D-095: A project with no recognized code starts from a starter stack
+- Context: Every builder comes from detection, and detection needs files. An empty folder has none, so the pipeline could plan and design but never build.
+- Decision: When no package has an active specialist, init reports `empty: true` with a list of starters. The `run` skill chooses one and runs `init.mjs --starter <id>`, which renders that starter's specialists as if detection had found them. This happens in setup, before the restart check, so a first run in an empty folder still needs at most one restart and every agent exists before planning.
+- Details the request left open:
+  1. The main session chooses, not Jev. The choice happens once per project, the main session already holds the request and runs a stronger model, it works without a Jev key, and it can tell a named framework from an incidental word ("next 7 days" is not Next.js). Code still owns the list, so the choice is always one of the stacks below.
+  2. A request that names a stack no starter covers stops with an explanation instead of silently getting another stack.
+  3. A run started under 0.5.0 in an empty folder is not repaired on resume: resuming never re-runs setup, because re-rendering agents mid-run could remove an agent that a pending task needs. The user starts the request again.
+- Reason: The smallest change that gives an empty project builders, without a second detection path or any template files in the plugin.
+
+### D-096: Five starters, all of which a builder can set up by writing files
+- Context: Each task has one owner, and the ownership guard blocks every file outside it. A framework generator such as `composer create-project`, `rails new`, or `ng new` writes dozens of files that belong to many owners, and most refuse a folder that is not empty (Tenonry's own `.tenonry/`, `.claude/`, and the test author's files are already there).
+- Decision: `react-vite` (the default for anything with a user interface), `vue-vite`, `sveltekit`, `nextjs`, and `node-api` (Express). Each is a set of catalog specialists, a `fits` sentence for the choice, a `setup` sentence for the test author, and the generated directories to ignore. Laravel, Rails, Django, Angular, Flutter, and similar stacks are created with their own new-project command first; Tenonry then detects them as usual.
+- Details the request left open: A test checks that detection finds every starter specialist again in a minimal skeleton of each starter, so the agents a run starts with are the agents the next run detects.
+- Reason: A builder can write a Vite or Express skeleton by hand in a few files; it cannot reproduce a framework generator file by file within one owner.
+
+### D-097: The starter stands in only while detection finds nothing
+- Context: A starter is a guess made before any file exists.
+- Decision: `config.json` records `starter` (`id`, `title`, `setup`). Every later init keeps it while detection still finds no specialist and drops it as soon as detection finds any. The starter's `ignore` lines (`node_modules/`, `dist/`, and so on) are added to `.gitignore` with Tenonry's own.
+- Details the request left open: The ignore lines are needed before the first install. Without them `git status -uall` lists every file in `node_modules`, each one an ownership violation that `revert-violations` would delete. The `setup` text is taken from the plugin's current list, not stored per project, so a plugin update reaches a project that is still empty.
+- Reason: Real files always win, and nothing about the guess outlives the first run that writes them.
+
+### D-098: A lockfile the package manager writes goes with the task
+- Context: Lockfiles are owned by `none` (D-009, docs/03 section 3.3) so that no agent edits one by hand. But `ownership-check` applied the same rule to a lockfile that `npm install` or `composer require` rewrote after a task added a dependency, so the change was reported as a violation and reverted, leaving the manifest and its lockfile out of step. In a new project every install hits this.
+- Decision: `ownership-check`, `verify`, and `checkpoint` attribute a changed lockfile to the task being checked, and the checkpoint commits it with the manifest. The ownership guard is unchanged: its owner is still `none`, so an Edit or Write on a lockfile is still blocked. Builders are told they may run the package manager to install a dependency they add to a manifest.
+- Details the request left open: This also changes existing projects, where a dependency added by a task used to leave a reverted lockfile behind. Two parallel tasks that both install see the same lockfile; the first checkpoint commits it, and the second commits whatever changed after that.
+- Reason: The lockfile is produced by a command a task is allowed to run, from a manifest every task may edit. Reverting it only broke the project.
+
+### D-099: On a starter, verify commands and the preview are read from the files
+- Context: Init stores `verify` and `preview` from the project's manifests. In an empty project there are none at init, so every task of the first run would skip its tests, the final gate would run nothing, and the design reviewer would have no preview.
+- Decision: `currentStack(root, config)` in `scripts/lib/stack.mjs` detects them from the current files when `config.starter` is present and the stored list or preview is empty. `verify`, `final-gate`, `review-plan` (design reviews only), `preview-start`, `preview-credentials`, and `report` use it. Projects without a starter keep using the stored values.
+- Details the request left open: Mid-run re-init was rejected: it would rewrite `config.json`, a committed file, during a run, and could change the agent set under pending tasks. The live read touches no file. It is limited to starter projects so that an existing project's behavior does not change. Builders' rendered verify lines still say no command is configured during that first run; Tenonry's own `verify` runs the task's tests after each builder finishes.
+- Reason: The first run of a new project gets the same checks as any other run.
+
+### D-100: The test author sets a new project up first
+- Context: Someone has to write the manifest, the build configuration, and the entry files, and install the dependencies, before any test can run.
+- Decision: When `config.json` has a `starter`, the test author makes the first task write the manifest and the build configuration its owner owns and install every dependency, including the test runner and test libraries its tests use; the other setup files go to their owners' tasks; every other task depends on the first; and the test author writes the test runner's configuration itself (it already owns `vitest.config.*` and the other test configs).
+- Details the request left open: No special "setup" task type and no temporary ownership rules. The skeleton is split by owner like any other change, which keeps the ownership guard and every check unchanged.
+- Reason: The existing contract machinery already handles multi-owner work; it only needed to know the project is new.
+
+### D-101: Housekeeping for 0.6.0
+- Context: Version, documents, tests.
+- Decision: Version 0.6.0 in `plugin.json`, `marketplace.json`, `package.json`, and the docs/03 examples. The `run` and `init` skill texts, the test author, and the builder template are updated in `docs/06`. The exact `--if-changed` skip result in `tests/init.test.mjs` gained `empty` and `starter`. The revision was committed on `main` and pushed to `origin/main` on the developer's instruction (see D-077).
+- Reason: One version everywhere, and the documents stay the source of truth.

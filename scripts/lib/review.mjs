@@ -6,6 +6,7 @@ import { reviewMessage, fixMessage } from "./delegation.mjs";
 import { readJson } from "./json.mjs";
 import * as git from "./git.mjs";
 import { loginAvailable } from "./preview.mjs";
+import { currentStack } from "./stack.mjs";
 
 // Showcase pages are judged as award entries; product screens as tools (library/rubrics/design.md).
 export const DESIGN_PROFILES = {
@@ -91,8 +92,9 @@ export async function reviewPlan(root, runId, taskId) {
     timeoutMs: ctx.config.routing.timeoutMs,
   });
 
-  const preview = ctx.config.preview ?? null;
   const login = loginAvailable(root);
+  // Only the design reviewer needs the preview; a new project may have one only since this run began.
+  const previewFor = (kind) => (kind === "design" ? currentStack(root, ctx.config).preview ?? null : null);
   const planned = [];
   const reviewers = [];
   const plan = (agent, kind, model) => {
@@ -103,7 +105,7 @@ export async function reviewPlan(root, runId, taskId) {
       agent,
       kind,
       model,
-      delegation: reviewMessage({ runId, task: def, kind, round: task.reviewRounds[kind], files, preview, login }),
+      delegation: reviewMessage({ runId, task: def, kind, round: task.reviewRounds[kind], files, preview: previewFor(kind), login }),
     });
   };
   if (undecided) {

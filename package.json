@@ -1,7 +1,7 @@
 {
   "name": "tenonry-dev",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Development tooling for the Tenonry plugin. The plugin itself has no dependencies.",
   "license": "MIT",
   "type": "module",

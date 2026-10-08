@@ -31,6 +31,7 @@ Examples:
 ## What to expect on the first run
 
 - Setup is automatic. Tenonry scans your project, picks the specialists that match your stack, and writes their agents into `.claude/agents/`.
+- An empty folder works too: Tenonry picks a starter stack for the request and prints `New project: starting a <starter>.` See "Starting from an empty folder" below.
 - If `.claude/agents/` did not exist yet, Claude Code needs one restart to see the new agents. Tenonry saves your request first. After the restart, type `/tenonry:run` and it continues where it stopped.
 - Claude Code asks you to trust the workspace. Tenonry's file guards are agent hooks, and Claude Code runs project agent hooks only after you accept that prompt.
 - If the request is unclear, you get a few multiple-choice questions, at most two rounds. After that Tenonry works without interrupting you.
@@ -71,6 +72,20 @@ TENONRY_PREVIEW_LOGIN_URL=/login
 
 Tenonry starts your dev server for the review when it is not already running, logs it to `.tenonry/logs/preview.log`, and stops only the one it started.
 
+## Starting from an empty folder
+
+Tenonry can start a project from nothing. Run `git init` in an empty folder, open it in Claude Code, and type `/tenonry:run <what you want>`. When setup finds no code it recognizes, Tenonry picks the starter that fits the request and prints `New project: starting a <starter>.` The first task sets the project up (manifest, build configuration, entry files) and installs its dependencies, including the test runner. Everything else in the run builds on it.
+
+| Starter | Used for |
+|---|---|
+| `react-vite` | Web apps, dashboards, and tools with a user interface. The default when the request names no framework |
+| `vue-vite` | A user interface built with Vue |
+| `sveltekit` | A user interface built with Svelte or SvelteKit |
+| `nextjs` | A web app built with Next.js, or one that needs server-rendered pages and its own API routes |
+| `node-api` | An HTTP API or backend service without a user interface of its own |
+
+Name the framework in your request to choose one, for example `... as a Vue app`. Laravel, Rails, Django, Angular, Flutter, and other stacks whose skeleton comes from their own new-project command are not started from an empty folder: create the project with that command, commit it, and run `/tenonry:run` again. Once the project has real files, the next run detects its stack from them and the starter is no longer used.
+
 ## What gets created
 
 Commit these:
@@ -79,7 +94,7 @@ Commit these:
 - `.tenonry/config.json`, `.tenonry/ownership.json`, `.tenonry/rubrics/`
 - `.tenonry/design-direction.md`: the visual direction, created on the first UI run
 
-Tenonry adds these to `.gitignore` for you: `.env`, `.tenonry/bin/`, `.tenonry/state.json`, `.tenonry/logs/`, `.tenonry/runs/`, `.claude/settings.local.json`.
+Tenonry adds these to `.gitignore` for you: `.env`, `.tenonry/bin/`, `.tenonry/state.json`, `.tenonry/logs/`, `.tenonry/runs/`, `.claude/settings.local.json`. A project started from an empty folder also gets its stack's generated directories, such as `node_modules/` and `dist/`.
 
 To keep approval prompts rare, setup also adds two allow rules to your local Claude Code settings, `.claude/settings.local.json`, and leaves everything else in that file as it is:
 
@@ -115,6 +130,14 @@ After about 20 tasks, `node .tenonry/bin/tenonry.mjs calibrate` compares Jev's c
 Delete `.claude/agents/tenonry-*.md` and the `.tenonry/` directory. Then uninstall the plugin with `claude plugin uninstall tenonry`.
 
 ## Changelog
+
+### 0.6.0
+
+Updating to 0.6.0 needs nothing from you. If a run in an empty folder stopped at the contract under 0.5.0, start it again with `/tenonry:run <what you want>`.
+
+- An empty folder works. When setup finds no code it recognizes, Tenonry picks a starter stack that fits the request (`react-vite` unless you name another), creates its specialists, and the first task sets the project up and installs its dependencies. See "Starting from an empty folder".
+- A lockfile that the package manager writes when a task adds a dependency is committed with that task, instead of being reverted as an ownership violation. Agents still may not edit a lockfile by hand.
+- In a project started from a starter, the test commands and the preview are read from the files the first task wrote, so every task is verified and screens get their visual review in the same run.
 
 ### 0.5.0
 

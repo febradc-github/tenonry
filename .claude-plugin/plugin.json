@@ -1,6 +1,6 @@
 {
   "name": "tenonry",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Specialist multi-agent pipeline: Jev-routed models, spec-first tests, single-owner files, design and code reviewers.",
   "author": { "name": "Dan Christian Febra" },
   "license": "MIT",

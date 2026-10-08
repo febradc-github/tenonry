@@ -1,7 +1,7 @@
 import path from "node:path";
 import { loadContext, taskDefinition, runTask, FINISHED } from "./ctx.mjs";
 import { runFiltered } from "../exec-filter.mjs";
-import { expandTestFiles } from "./stack.mjs";
+import { expandTestFiles, currentStack } from "./stack.mjs";
 import { attributedFiles } from "./tasks.mjs";
 import { nextTier } from "./routing.mjs";
 import { fixMessage } from "./delegation.mjs";
@@ -101,7 +101,7 @@ export function verify(root, runId, taskId) {
   task.status = "verifying";
   task.changedFiles = attributedFiles(ctx, taskId);
 
-  const entry = selectVerifyEntry(ctx.config, def, task.changedFiles);
+  const entry = selectVerifyEntry(currentStack(root, ctx.config), def, task.changedFiles);
   let steps = [];
   let failures = [];
   if (entry) {
@@ -141,8 +141,8 @@ export function verify(root, runId, taskId) {
   return output;
 }
 
-function taskTestsStillPass(ctx, def) {
-  const entry = selectVerifyEntry(ctx.config, def);
+function taskTestsStillPass(ctx, verifyConfig, def) {
+  const entry = selectVerifyEntry(verifyConfig, def);
   if (!entry?.testFiles || (def.tests ?? []).length === 0) return true;
   const command = expandTestFiles(entry.testFiles, def.tests, entry.root);
   const result = runFiltered({ command, cwd: packageDir(ctx.root, entry.root), label: `${def.id}-final`, root: ctx.root, maxLines: ctx.config.outputFilter.maxLines });
@@ -152,8 +152,9 @@ function taskTestsStillPass(ctx, def) {
 // Docs/03 section 6.7: strict, project-wide checks; one reopen of tasks whose own tests now fail.
 export function finalGate(root, runId) {
   const ctx = loadContext(root, runId, { contract: true });
+  const stack = currentStack(root, ctx.config);
   const steps = [];
-  for (const entry of ctx.config.verify) {
+  for (const entry of stack.verify) {
     for (const name of ["test", "typecheck", "lint"]) {
       if (!entry[name]) continue;
       const result = runFiltered({ command: entry[name], cwd: packageDir(root, entry.root), label: `final-${name}`, root, maxLines: ctx.config.outputFilter.maxLines });
@@ -168,11 +169,11 @@ export function finalGate(root, runId) {
   }
 
   const reopened = [];
-  if (!ctx.run.finalGateReopened && ctx.config.verify.some((entry) => entry.testFiles)) {
+  if (!ctx.run.finalGateReopened && stack.verify.some((entry) => entry.testFiles)) {
     for (const def of ctx.contract.tasks) {
       const task = ctx.run.tasks[def.id];
       if (!task || !FINISHED.includes(task.status) || (def.tests ?? []).length === 0) continue;
-      if (taskTestsStillPass(ctx, def)) continue;
+      if (taskTestsStillPass(ctx, stack, def)) continue;
       task.status = "pending";
       task.failuresOnTier = 0;
       task.reviewRounds = { design: 0, code: 0 };

@@ -94,3 +94,13 @@ test("task-files returns the recorded changed files", () => {
   s.cli("verify", s.runId, "T1");
   assert.deepEqual(s.cli("task-files", s.runId, "T1").files, ["app/Models/LoyaltyPoint.php"]);
 });
+
+test("0.6.0: a lockfile the package manager wrote goes with the task, like the manifest beside it", () => {
+  const s = started();
+  s.write("app/Models/LoyaltyPoint.php");
+  fs.appendFileSync(path.join(s.root, "composer.json"), "\n");
+  s.write("composer.lock", "{}\n");
+  const result = s.cli("ownership-check", s.runId, "T1");
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.files.sort(), ["app/Models/LoyaltyPoint.php", "composer.json", "composer.lock"]);
+});

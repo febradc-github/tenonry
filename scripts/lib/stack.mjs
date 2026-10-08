@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { readJson } from "./json.mjs";
+import { detectAll } from "./detect.mjs";
 
 const read = (file) => {
   try {
@@ -167,6 +168,19 @@ export function detectPreview(root, packages) {
     if (/rails/.test(read(path.join(pkgDir, "Gemfile")))) return preview("bin/rails server", "http://localhost:3000");
   }
   return null;
+}
+
+// Init stores the verify commands and the preview it finds. A project on a starter has neither until a task
+// writes its manifest, so until the next init they are read from the files as they are now (docs/03 section 5.6).
+export function currentStack(root, config) {
+  const verify = config.verify ?? [];
+  if (!config.starter || (verify.length > 0 && config.preview)) return config;
+  const packages = detectAll(root, []).packages;
+  return {
+    ...config,
+    verify: verify.length > 0 ? verify : packages.flatMap((pkg) => verifyEntries(root, pkg)),
+    preview: config.preview ?? detectPreview(root, packages),
+  };
 }
 
 // {files}: the task's test paths relative to the package root, single-quoted for sh.

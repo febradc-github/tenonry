@@ -75,13 +75,13 @@ test("every agent mentioned in delegations exists in the library", () => {
 test("the plugin manifests carry the documented metadata", () => {
   const plugin = JSON.parse(read(".claude-plugin", "plugin.json"));
   assert.equal(plugin.name, "tenonry");
-  assert.equal(plugin.version, "0.5.0");
+  assert.equal(plugin.version, "0.6.0");
   assert.deepEqual(plugin.author, { name: "Dan Christian Febra" });
   assert.equal(plugin.license, "MIT");
   assert.equal(plugin.repository, undefined);
   const market = JSON.parse(read(".claude-plugin", "marketplace.json"));
   assert.equal(market.name, "tenonry-local");
-  assert.deepEqual(market.plugins[0], { name: "tenonry", source: "./", description: "Specialist multi-agent pipeline with Jev routing.", version: "0.5.0" });
+  assert.deepEqual(market.plugins[0], { name: "tenonry", source: "./", description: "Specialist multi-agent pipeline with Jev routing.", version: "0.6.0" });
 });
 
 test("the user README follows the required order and names the license", () => {
@@ -130,7 +130,7 @@ test("F12: the README changelog lists the eleven 0.2.0 changes and the automatic
 
 test("F12: every manifest and the dev package agree on the version", () => {
   const version = JSON.parse(read(".claude-plugin", "plugin.json")).version;
-  assert.equal(version, "0.5.0");
+  assert.equal(version, "0.6.0");
   assert.equal(JSON.parse(read(".claude-plugin", "marketplace.json")).plugins[0].version, version);
   assert.equal(JSON.parse(read("package.json")).version, version);
 });
@@ -233,4 +233,30 @@ test("0.5.0: the README changelog lists the least-code changes and credits ponyt
     assert.ok(section.includes(needle), needle);
   }
   assert.ok(readme.includes("- `codebaseMap`: "), "the optional settings list the knob");
+});
+
+test("0.6.0: the run skill picks a starter for an empty project before the restart check", () => {
+  const skill = read("skills", "run", "SKILL.md");
+  const step1 = skill.slice(skill.indexOf("## Step 1: setup"), skill.indexOf("## Step 2: run directory"));
+  for (const needle of [
+    "`empty: true`: the project has no code Tenonry recognizes yet, so it starts from a starter.",
+    "From `starters`, choose the one the request names, otherwise the one whose `fits` matches the request best.",
+    "run `node \"<plugin root>/scripts/init.mjs\" --starter <id>` and print `New project: starting a <title>.`",
+    "treat `agentsDirCreated` as true if either result says so",
+    "Tenonry cannot start a <name> project in an empty folder yet.",
+  ]) {
+    assert.ok(step1.includes(needle), needle);
+  }
+  assert.ok(step1.indexOf("--starter <id>") < step1.indexOf("3. If `agentsDirCreated` is true"));
+  assert.ok(skill.includes("- `New project: starting a <starter title>.`"));
+  assert.ok(!skill.includes("print the two setup progress lines"));
+  assert.ok(read("skills", "init", "SKILL.md").includes("- `empty: true`: tell the user the project has no code Tenonry recognizes yet"));
+});
+
+test("0.6.0: the README explains empty projects and lists the starters", () => {
+  const readme = read("README.md");
+  const section = readme.slice(readme.indexOf("### 0.6.0"), readme.indexOf("### 0.5.0"));
+  assert.ok(readme.indexOf("### 0.6.0") > readme.indexOf("## Changelog"));
+  for (const needle of ["empty folder", "lockfile", "react-vite", "node-api"]) assert.ok(section.includes(needle) || readme.includes(needle), needle);
+  assert.ok(readme.includes("## Starting from an empty folder"));
 });

@@ -20,7 +20,7 @@ If the message you receive does not start with `TENONRY_TASK`, reply `tenonry-{{
 
 {{owns}}
 
-The ownership guard blocks edits to any other file. Never edit tests; the test author owns them. Do not change files with ad hoc shell commands such as sed, echo, or cp. You may run the project's own code generators and migration tools (for example `php artisan make:migration`, `prisma migrate dev --create-only`, `drizzle-kit generate`, `alembic revision --autogenerate`, `python manage.py makemigrations`) when everything they write is in files you own. Read every generated file before reporting and list it in `filesChanged`. If a generator names a file differently from the contract, such as a different migration timestamp, keep the generated name. Tenonry reverts any change to a file you do not own.
+The ownership guard blocks edits to any other file. Never edit tests; the test author owns them. Do not change files with ad hoc shell commands such as sed, echo, or cp. You may run the project's own code generators and migration tools (for example `php artisan make:migration`, `prisma migrate dev --create-only`, `drizzle-kit generate`, `alembic revision --autogenerate`, `python manage.py makemigrations`) when everything they write is in files you own. You may also run the package manager to install a dependency you add to a manifest; the lockfile it writes goes with your task. Read every generated file before reporting and list it in `filesChanged`. If a generator names a file differently from the contract, such as a different migration timestamp, keep the generated name. Tenonry reverts any change to a file you do not own.
 
 ## Workflow (mode `build`)
 

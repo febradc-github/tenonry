@@ -6,6 +6,7 @@ import { readDecisionLog } from "./jev.mjs";
 import { loadConfig } from "./config.mjs";
 import { runDir } from "./paths.mjs";
 import { unrenderedNote } from "./review.mjs";
+import { currentStack } from "./stack.mjs";
 
 const PHASE_WORDS = {
   intake: "Clarifying the request",
@@ -93,7 +94,8 @@ function reviewSummary(task) {
   return parts.join(", ") || "-";
 }
 
-function tryIt(config) {
+function tryIt(root, stored) {
+  const config = currentStack(root, stored);
   if (config.preview?.command) return `${config.preview.command}${config.preview.url ? ` (${config.preview.url})` : ""}`;
   const first = config.verify.find((entry) => entry.test);
   return first ? first.test : null;
@@ -155,7 +157,7 @@ export function report(root, runId) {
       total: tasks.length,
       tasks: tasks.map(([id, t]) => ({ id, title: names.get(id) ?? "", status: t.status })),
       attention,
-      tryIt: tryIt(config),
+      tryIt: tryIt(root, config),
       jevCost: usage.cost,
     },
   };

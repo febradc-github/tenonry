@@ -295,3 +295,44 @@ New files: `scripts/lib/map.mjs`, `scripts/hook-subagent-start.mjs`, `tests/map.
 ### New decisions
 
 D-088 to D-094. Full text in `docs/DECISIONS.md`.
+
+## Revision 0.6.0
+
+Starting a project from an empty folder. A `/tenonry:run` in an empty git repository found no stack, so no builder existed and the run stopped at the contract. One commit, `feat(0.6.0): start a project from an empty folder`, pushed to `origin/main` on the developer's instruction (D-101).
+
+### What changed
+
+| # | Change | Decision |
+|---|---|---|
+| 1 | When setup finds no code it recognizes, init reports `empty` and lists five starters; the `run` skill picks one for the request and runs `init.mjs --starter <id>`, before the restart check | D-095 |
+| 2 | Starters: `react-vite` (default for a user interface), `vue-vite`, `sveltekit`, `nextjs`, `node-api`. Stacks that need their own generator (Laravel, Rails, Django, Angular, Flutter) stop with an explanation | D-096 |
+| 3 | `config.starter` stands in only while detection finds nothing; the starter's generated directories go into `.gitignore` before anything is installed | D-097 |
+| 4 | A lockfile the package manager writes goes with the task instead of being reverted as a violation; hand edits are still blocked | D-098 |
+| 5 | On a starter, verify commands and the preview are read from the files the first task wrote | D-099 |
+| 6 | The test author sets a new project up as the first task; builders may install the dependencies they add | D-100 |
+
+New files: `scripts/lib/starter.mjs`, `tests/starter.test.mjs`. Version 0.6.0 (D-101).
+
+### Test results
+
+- `node --test`: **533 tests, 529 passed, 0 failed, 4 skipped** (the live Jev test and the three `claude plugin validate` tests). Twelve tests are new.
+- End-to-end check in a fresh `git init` folder with no commits, through the real scripts with Jev disabled: init reported `empty` and the five starters; `--starter react-vite` rendered 14 agents and wrote `node_modules/` and `dist/` into the Tenonry block of `.gitignore`. A setup task wrote `package.json` and `vite.config.ts` and ran a real `npm install` (react, vite, vitest, typescript). `ownership-check` attributed the lockfile with no violations, and `node_modules` stayed out of `git status`. The checkpoint made the repository's first commit. The next task's `verify` ran the real test command found live (`npx vitest run 'src/lib/units.test.ts'`, passed). The UI task's design review got the live preview (`npm run dev`, port 5173), the final gate ran `npm test`, and the report's "Try it" line named the preview. A later `init --if-changed` dropped the starter and detected the stack from the files.
+
+### Skipped or unverified checks
+
+| Check | Why | What stands in for it |
+|---|---|---|
+| A real `/tenonry:run` with agents in an empty folder | Token cost | The end-to-end check above drives every script the orchestrator calls; the agent texts are checked sentence by sentence |
+| `claude plugin validate` | The Claude Code CLI here only runs `claude -p` | `hooks.json` and the manifests are unchanged apart from the version |
+| Picking the starter | It is a judgment by the main session, with no code path to test | The list, its fields, and the skill sentences are tested; a wrong pick is visible in the `New project:` line |
+
+### Things worth knowing
+
+- **A run that stopped under 0.5.0 is not repaired on resume.** Start the request again; resuming never re-runs setup (D-095 point 3).
+- **The lockfile change also applies to existing projects.** A task that adds a dependency now commits the updated lockfile with the manifest (D-098).
+- **The first run's builders do not see a test command in their own instructions**, because none existed when their agents were rendered. Tenonry's `verify` still runs each task's tests after the builder finishes, and the next run renders the real commands (D-099).
+- **Detection after the first run follows the files.** If the project ends up with no `.css` file, for example, the next run has no CSS specialist; nothing is lost, because a starter only stands in until real files exist.
+
+### New decisions
+
+D-095 to D-101. Full text in `docs/DECISIONS.md`.

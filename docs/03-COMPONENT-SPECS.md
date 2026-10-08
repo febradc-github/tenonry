@@ -9,7 +9,7 @@ All paths are relative to the plugin root unless marked `<project>`. Every JSON 
 ```json
 {
   "name": "tenonry",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Specialist multi-agent pipeline: Jev-routed models, spec-first tests, single-owner files, design and code reviewers.",
   "author": { "name": "Dan Christian Febra" },
   "license": "MIT",
@@ -25,7 +25,7 @@ All paths are relative to the plugin root unless marked `<project>`. Every JSON 
   "description": "Local marketplace for the Tenonry plugin.",
   "owner": { "name": "Dan Christian Febra" },
   "plugins": [
-    { "name": "tenonry", "source": "./", "description": "Specialist multi-agent pipeline with Jev routing.", "version": "0.5.0" }
+    { "name": "tenonry", "source": "./", "description": "Specialist multi-agent pipeline with Jev routing.", "version": "0.6.0" }
   ]
 }
 ```
@@ -249,7 +249,7 @@ Two priority bands in the catalog are deliberate. The styling specialists (`css`
 {
   "version": 1,
   "plugin": "tenonry",
-  "pluginVersion": "0.5.0",
+  "pluginVersion": "0.6.0",
   "initializedAt": "<ISO>",
   "packages": [
     { "root": ".", "packageManager": "npm", "specialists": ["laravel", "eloquent", "vue", "tailwind", "html", "php", "nodejs"] }
@@ -289,6 +289,8 @@ Two priority bands in the catalog are deliberate. The styling specialists (`css`
   "codebaseMap": { "enabled": true, "maxChars": 2000 }
 }
 ```
+
+A project started from an empty folder also has `"starter": { "id": "react-vite", "title": "...", "setup": "..." }` while detection finds no specialist (section 5.6).
 
 On re-init, `routing`, `limits`, `readGuard`, `outputFilter`, and `codebaseMap` are preserved from the existing file (deep merge, existing values win); everything else is regenerated. One retired knob is dropped on re-init: `routing.thresholds.opus.minBlastRadius`, which stopped choosing the builder's model in 0.3.1 (`docs/04-JEV-ROUTING.md` section 4). Code ignores it when an older file still has it.
 
@@ -468,24 +470,24 @@ Outcome line (appended by `verify`): `{"ts", "runId", "task", "kind": "outcome",
 
 ## 5. `scripts/init.mjs`
 
-CLI: `node init.mjs [--project <dir>] [--dry-run] [--if-changed]`. Default project: `process.cwd()`. Prints one JSON summary. `--dry-run` writes nothing and prints what it would do. `--if-changed` makes init a fast no-op when nothing relevant changed (section 5.5); the `run` skill calls init this way at the start of every run.
+CLI: `node init.mjs [--project <dir>] [--dry-run] [--if-changed] [--starter <id>]`. Default project: `process.cwd()`. Prints one JSON summary. `--dry-run` writes nothing and prints what it would do. `--if-changed` makes init a fast no-op when nothing relevant changed (section 5.5); the `run` skill calls init this way at the start of every run.
 
 ### 5.1 Steps
 
 1. Resolve the project root (the given directory; do not walk up). Record `gitRepo: isGitRepo(root)`; a non-repo is a warning, not an error.
 2. Require Node 18 or newer; otherwise print `{"ok": false, "error": "node_too_old"}` and exit 1.
 3. Load `library/catalog.json` from the plugin root.
-4. Detect packages and specialists (5.2).
+4. Detect packages and specialists (5.2). When no package has a specialist, apply the starter (5.6).
 5. Resolve verification commands per package (5.3) and the preview (5.4).
 6. Build `ownership.json`: system rules, test rules, catalog rules (sections 3.2 to 3.4).
 7. Write `config.json` (merge rule in 4.1).
 8. Copy `scripts/tenonry.mjs`, `scripts/exec-filter.mjs`, `scripts/hook-ownership-guard.mjs`, and `scripts/lib/` into `.tenonry/bin/` (same relative layout, so imports keep working). Write `.tenonry/bin/VERSION` with the plugin version.
 9. Copy `library/rubrics/design.md` and `code.md` to `.tenonry/rubrics/`.
 10. Render agents (section 9) into `.claude/agents/`. Delete stale `tenonry-*.md` files in `.claude/agents/` that contain the generated marker line and are not in the new set. Never touch files without the marker.
-11. Ensure `.gitignore` contains each of: `.env`, `.tenonry/bin/`, `.tenonry/state.json`, `.tenonry/logs/`, `.tenonry/runs/`, `.claude/settings.local.json`. Append missing lines under a `# tenonry` header. Create `.gitignore` if absent.
+11. Ensure `.gitignore` contains each of: `.env`, `.tenonry/bin/`, `.tenonry/state.json`, `.tenonry/logs/`, `.tenonry/runs/`, `.claude/settings.local.json`. With a starter in effect, also each line of its `ignore` list. Append missing lines under a `# tenonry` header. Create `.gitignore` if absent.
 12. Ensure `.claude/settings.local.json` contains, in its `permissions.allow` array, each of `Bash(node .tenonry/bin/tenonry.mjs *)` (Tenonry's own bookkeeping script, which the orchestrator and the agents call many times per run) and `mcp__playwright` (the design reviewer's browser). Create the file and the keys if missing. Never remove, reorder, or rewrite other entries or keys; write with 2-space indentation and a trailing newline. If the file exists but is not valid JSON, or `permissions` or `permissions.allow` has the wrong type, leave it untouched and add the warning `settings.local.json is not valid JSON; add the Tenonry permission rules by hand`. The file is gitignored (step 11) because Claude Code applies an untracked local settings file without the workspace trust step.
 13. Report whether `.env` contains a non-empty `OPENROUTER_API_KEY` as a boolean only.
-14. Print `{"ok": true, "gitRepo", "packages", "active", "agentsWritten", "agentsRemoved", "agentsDirCreated", "verify", "preview", "jevKey", "warnings", "skipped": false, "manifestHash", "permissionsAdded"}`. `agentsDirCreated` is true when `.claude/agents/` did not exist before this run (Claude Code needs a restart to watch a new agents directory). `permissionsAdded` is true when this run added at least one permission rule (with `--dry-run`: when it would).
+14. Print `{"ok": true, "gitRepo", "packages", "active", "agentsWritten", "agentsRemoved", "agentsDirCreated", "verify", "preview", "jevKey", "warnings", "skipped": false, "manifestHash", "permissionsAdded", "empty", "starter"}`, plus `"starters"` when `empty` is true. `agentsDirCreated` is true when `.claude/agents/` did not exist before this run (Claude Code needs a restart to watch a new agents directory). `permissionsAdded` is true when this run added at least one permission rule (with `--dry-run`: when it would).
 
 ### 5.2 Detection
 
@@ -553,7 +555,26 @@ If the dev script text contains `--port <n>` or `-p <n>`, use that port. `cwd` i
 
 `manifestHash` = sha256 over: the plugin version, then for each file below that exists (sorted by path), its relative path and contents: every `package.json`, `composer.json`, `pyproject.toml`, `requirements*.txt`, `Pipfile`, `go.mod`, `Cargo.toml`, `Gemfile`, `mix.exs`, `pom.xml`, `build.gradle`, `build.gradle.kts`, `*.csproj`, `pubspec.yaml`, `deno.json`, `deno.jsonc`, `dbt_project.yml`, `pnpm-workspace.yaml`, `artisan`, and `manage.py` at depth 2 or less, skipping the directories excluded by the file scan. Store it in `config.json`.
 
-With `--if-changed`: when `config.json` exists, its `manifestHash` equals the freshly computed hash, `.tenonry/bin/VERSION` equals the plugin version, every agent in `config.agents` exists as a file, and both permission rules of step 12 are present in `.claude/settings.local.json` (a file that cannot be merged into does not count as missing rules, so it does not force a full init on every run), print `{"ok": true, "skipped": true, "agentsDirCreated": false, "jevKey": <bool>}` and change nothing else. Otherwise run the full init.
+With `--if-changed`: when `config.json` exists, its `manifestHash` equals the freshly computed hash, `.tenonry/bin/VERSION` equals the plugin version, every agent in `config.agents` exists as a file, and both permission rules of step 12 are present in `.claude/settings.local.json` (a file that cannot be merged into does not count as missing rules, so it does not force a full init on every run), print `{"ok": true, "skipped": true, "agentsDirCreated": false, "jevKey": <bool>, "empty": <bool>, "starter": <id|null>}`, plus `"starters"` when `empty` is true, and change nothing else. Otherwise run the full init. `--starter` always runs the full init.
+
+### 5.6 Starters (`scripts/lib/starter.mjs`)
+
+A project in which detection finds no specialist has no builder to own its files, so it starts from a starter: a fixed set of catalog specialists that detection finds again once the project's files exist.
+
+| id | Specialists | `ignore` |
+|---|---|---|
+| `react-vite` | react, typescript, css, html, nodejs | `node_modules/`, `dist/` |
+| `vue-vite` | vue, typescript, css, html, nodejs | `node_modules/`, `dist/` |
+| `sveltekit` | svelte, typescript, css, html, nodejs | `node_modules/`, `.svelte-kit/`, `build/` |
+| `nextjs` | nextjs, typescript, css, nodejs | `node_modules/`, `.next/`, `out/`, `next-env.d.ts` |
+| `node-api` | express, typescript, nodejs | `node_modules/`, `dist/` |
+
+Each starter also has a `title`, a `fits` sentence that tells the `run` skill when to choose it, and a `setup` sentence for the test author (the files and tools the project is set up with).
+
+1. `empty` in the init result is true when no specialist is active. The result then lists `starters` (`id`, `title`, `fits`). The `run` skill chooses one and calls `init.mjs --starter <id>`.
+2. `--starter <id>`: an unknown id prints `{"ok": false, "error": "unknown_starter: <id>"}`. When detection finds no specialist in any package, the root package's specialists are the starter's (in catalog order) and `config.json` gets `"starter": { "id", "title", "setup" }`. When detection finds any, the starter is not applied and the warning `the project already has a stack, so the starter <id> was not applied` is added.
+3. A later init keeps `config.starter` while detection still finds nothing, and drops it as soon as detection finds any specialist: real files always win.
+4. While `config.starter` is present, `verify`, `final-gate`, `review-plan`, `preview-start`, `preview-credentials`, and `report` use `currentStack(root, config)` (`scripts/lib/stack.mjs`): when the stored `verify` list is empty or `preview` is null, they are detected from the project's files as they are at that moment (sections 5.3 and 5.4). Without a starter, the stored values are used as before.
 
 ## 6. `scripts/tenonry.mjs`
 
@@ -609,7 +630,7 @@ Single CLI used by the `run` skill. Run from the project as `node .tenonry/bin/t
 
 ### 6.2 `verify`
 
-1. Set status `verifying`. `changedFiles` = paths from `git.diffSince(baseline)` whose owner allows the task owner.
+1. Set status `verifying`. `changedFiles` = paths from `git.diffSince(baseline)` whose owner allows the task owner, plus changed lockfiles (section 6.3).
 2. Pick the verify entry whose `root` is the longest prefix of the task's first file. A task that lists no files (a quick task) uses the first file it changed instead.
 3. Steps, in order, each through `exec-filter` (in-process function): tests (`testFiles` with the task's tests when both exist, otherwise skipped with reason `no_test_template` or `no_tests`), `typecheck` (if not null), `lint` (if not null). Run each step with `cwd` set to the package root.
 4. `result`: `pass` when every executed step passes. The test step passes only on exit 0. Typecheck and lint run project-wide while other tasks' tests may still reference unbuilt code, so they are scoped: a typecheck or lint step passes on exit 0, and also on a non-zero exit when its full output mentions none of the task's `changedFiles` or `tests` paths (match the relative path, or the path relative to the package root). The final gate applies no such scoping.
@@ -620,7 +641,7 @@ Single CLI used by the `run` skill. Run from the project as `node .tenonry/bin/t
 
 ### 6.3 `ownership-check`
 
-Using `git.diffSince(baseline)`: each changed path is attributed to this task if its owner allows the task owner; ignored if its owner allows the owner of another task that is currently `running`, `verifying`, or `reviewing`; otherwise it is a violation. Paths under `.tenonry/runs/` are ignored. Returns `{ ok, files, violations: [{ path, owner }] }`.
+Using `git.diffSince(baseline)`: each changed path is attributed to this task if its owner allows the task owner, or if it is a lockfile (section 3.3), because the package manager writes it when a task adds a dependency to the shared manifest beside it; ignored if its owner allows the owner of another task that is currently `running`, `verifying`, or `reviewing`; otherwise it is a violation. Paths under `.tenonry/runs/` are ignored. Returns `{ ok, files, violations: [{ path, owner }] }`.
 
 ### 6.4 `review-plan`
 

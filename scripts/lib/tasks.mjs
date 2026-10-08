@@ -1,5 +1,5 @@
 import { loadContext, taskDefinition, runTask, layerOf, specialistOf, FINISHED, ACTIVE, CliError } from "./ctx.mjs";
-import { loadRules, resolveOwner, ownerAllows } from "./ownership.mjs";
+import { loadRules, resolveOwner, ownerAllows, isLockfile } from "./ownership.mjs";
 import { decideWithJev } from "./jev.mjs";
 import { dispatchQuestions, mapDispatch, fallbackDispatch, applyFloor } from "./routing.mjs";
 import { buildMessage } from "./delegation.mjs";
@@ -16,7 +16,7 @@ export function attributedFiles(ctx, taskId) {
   return git
     .diffSince(ctx.root, task.baseline)
     .filter((file) => !file.startsWith(IGNORED_PREFIX))
-    .filter((file) => ownerAllows(resolveOwner(rules, file)?.owner, owner));
+    .filter((file) => isLockfile(file) || ownerAllows(resolveOwner(rules, file)?.owner, owner));
 }
 
 function blockDependents(ctx) {
@@ -166,7 +166,7 @@ export function ownershipCheck(root, runId, taskId) {
   const violations = [];
   for (const file of git.diffSince(root, task.baseline).filter((f) => !f.startsWith(IGNORED_PREFIX))) {
     const resolved = resolveOwner(rules, file);
-    if (ownerAllows(resolved?.owner, owner)) files.push(file);
+    if (isLockfile(file) || ownerAllows(resolved?.owner, owner)) files.push(file);
     else if (otherOwners.some((other) => ownerAllows(resolved?.owner, other))) continue;
     else violations.push({ path: file, owner: resolved ? (Array.isArray(resolved.owner) ? resolved.owner.join(", ") : resolved.owner) : "unowned" });
   }

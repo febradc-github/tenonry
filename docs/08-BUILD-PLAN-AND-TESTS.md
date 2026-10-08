@@ -181,3 +181,11 @@ Ponytail's token-saving ideas, adapted (decisions D-088 to D-094).
 - `hooks.json` with five hooks and the `^tenonry-` matcher: `tests/hook-session-start.test.mjs`.
 - The least-code section in builders only, the one-line reply in every agent, the reviewer's map sentence for C8, the extended C8, and the test author's small-contract rule that keeps coverage: `tests/agents-render.test.mjs`; the verbatim copies in `docs/06` and `docs/07`: `tests/shipped-files.test.mjs`.
 - `codebaseMap` on init and re-init, version 0.5.0, and the changelog: `tests/init.test.mjs` and `tests/skills.test.mjs`.
+
+## Revision 0.6.0 tests
+
+Starting from an empty folder (decisions D-095 to D-101).
+
+- Every starter names catalog specialists and has its fields; detection finds every starter specialist again in a minimal skeleton of each starter; init in an empty project reports `empty` and the starters, also when skipped; `--starter` renders the builders, records the starter, and adds its ignore lines; real files replace the starter on the next init; an unknown starter fails; a project with code ignores a starter; `currentStack` reads verify commands and the preview from files only on a starter; a setup task through the real CLI keeps its lockfile, passes verify, and commits while `node_modules` stays ignored: `tests/starter.test.mjs`.
+- A lockfile changed next to a manifest goes with the task: `tests/ownership-check.test.mjs`. The guard still blocks a hand edit of a lockfile: `tests/ownership-guard.test.mjs` (unchanged).
+- The run skill's starter step before the restart check, the init skill's empty note, the README section and changelog, and version 0.6.0: `tests/skills.test.mjs` and `tests/init.test.mjs`; the test author's new-project rule and the builder's install sentence: `tests/agents-render.test.mjs`.

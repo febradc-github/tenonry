@@ -230,3 +230,12 @@ test("0.5.0: the test author keeps the contract small without lowering coverage"
   assert.ok(text.includes("This never lowers coverage: every acceptance criterion still gets its tests."));
   assert.ok(text.includes("5. Write the tests. Derive them only from the acceptance criteria and interfaces"), "test writing is unchanged");
 });
+
+test("0.6.0: the test author sets up a starter project first, and builders may install what they add", () => {
+  const author = fs.readFileSync(path.join(libraryDir, "core", "test-author.md"), "utf8");
+  assert.ok(author.includes("- When `.tenonry/config.json` has a `starter`, the project is new and has no code yet. Set it up the way `starter.setup` describes."));
+  assert.ok(author.includes("Every other task depends on the first. Write the test runner's configuration yourself."));
+  const builder = render([{ root: ".", specialists: ["nodejs"] }]).get("tenonry-nodejs");
+  assert.ok(builder.includes("You may also run the package manager to install a dependency you add to a manifest; the lockfile it writes goes with your task."));
+  assert.ok(builder.includes(GENERATOR_SENTENCE), "the generator sentence is unchanged");
+});

@@ -26,6 +26,7 @@ Re-scan and refresh Tenonry for the current project. This is optional: `/tenonry
    - Verification commands and preview command, or that none were found.
    - `jevKey: false`: tell the user to add `OPENROUTER_API_KEY=...` to the project's `.env` file. Tenonry still works without it, using fixed fallbacks instead of Jev routing.
    - `gitRepo: false`: tell the user `/tenonry:run` needs a git repository.
+   - `empty: true`: tell the user the project has no code Tenonry recognizes yet, and that `/tenonry:run <what you want>` starts it from a starter stack that fits the request.
    - `agentsDirCreated: true`: tell the user to restart Claude Code once so it picks up the new `.claude/agents/` directory.
    - Always mention that project agents use hooks, which run only after the user accepts the workspace trust prompt for this folder.
 4. If the result has `ok: false`, show the error and stop.
@@ -63,6 +64,7 @@ You are the Tenonry orchestrator. The user's input is: $ARGUMENTS
 Print each line when its event happens:
 
 - `Setting up Tenonry for this project...` then `Ready: <n> specialists (<ids, comma-separated>).`
+- `New project: starting a <starter title>.`
 - `Tip: add OPENROUTER_API_KEY to your .env for smarter model routing. Using defaults for now.` (only when `state.notices.jevKeyMissing` is false; then run `tenonry.mjs notice-shown jevKeyMissing`)
 - `Tip: Tenonry coordinates more reliably on Sonnet. Continuing on Haiku.` (when `route.mainModel.notice` is true)
 - `This is a question, so no code will change. Answering directly.`
@@ -123,7 +125,9 @@ Setup is automatic. Optional: add OPENROUTER_API_KEY to .env for smarter model r
 1. `git rev-parse --is-inside-work-tree` fails: print `Tenonry needs a git repository. Run git init and commit your files, then try again.` and stop.
 2. Run `node "<plugin root>/scripts/init.mjs" --if-changed` from the project directory.
    - `ok: false`: print `Setup failed: <error>.` and stop.
-   - `skipped: false`: print the two setup progress lines.
+   - `skipped: false`: print `Setting up Tenonry for this project...`.
+   - `empty: true`: the project has no code Tenonry recognizes yet, so it starts from a starter. From `starters`, choose the one the request names, otherwise the one whose `fits` matches the request best. If the request names a framework or language that no starter covers, print `Tenonry cannot start a <name> project in an empty folder yet. Create the project with that framework's own new-project command, commit it, then run /tenonry:run again.` and stop. Otherwise run `node "<plugin root>/scripts/init.mjs" --starter <id>` and print `New project: starting a <title>.` Use its result from here on, but treat `agentsDirCreated` as true if either result says so.
+   - `skipped: false`, or a starter was applied: print `Ready: <n> specialists (<ids, comma-separated>).`
    - `jevKey: false`: print the key tip if it has not been shown.
 3. If `agentsDirCreated` is true: save the request by passing it verbatim through a quoted heredoc: `node .tenonry/bin/tenonry.mjs new-run --prompt-stdin <<'TENONRY_REQUEST'`, then the request on the following lines, then a line containing only `TENONRY_REQUEST`. Then run `tenonry.mjs restart-pending true`, print `Tenonry is set up. Restart Claude Code once so it can load the new agents, then type /tenonry:run to continue.` and stop.
 
@@ -486,6 +490,7 @@ Read the `errors:` or `issues:` in the message. Change the contract and tests as
 - Write only test files, `contract.json`, and `contract.md`. The ownership guard blocks everything else.
 - Every acceptance criterion in the plan maps to at least one test or, for purely visual criteria, to a design-reviewed task.
 - A plan whose metadata says `direct: yes` was not written by the planner: the run skipped planning because the request is small, and the plan holds the brief as written. Derive the acceptance criteria from the brief yourself, as observable behaviors, record them in each task's `acceptance`, and keep the contract as small as the request, often a single task. Do not widen the scope.
+- When `.tenonry/config.json` has a `starter`, the project is new and has no code yet. Set it up the way `starter.setup` describes. The first task writes the manifest and the build configuration its owner owns, and installs every dependency, including the test runner and test libraries your tests use; its summary names them. The other setup files (type configuration, the HTML entry, the first stylesheet, the app entry) go to their owners' tasks. Every other task depends on the first. Write the test runner's configuration yourself.
 - Use exact relative paths. No globs in `files`.
 - For files whose names a generator decides, such as timestamped migrations, list the name the project's naming convention would produce. A builder may produce a different timestamp; that is expected and needs no contract change.
 - The least work that meets the plan wins. Prefer changing existing files to creating new ones, and reuse the modules, helpers, and components that already exist; the codebase map in your context, when there is one, lists them. Add no file, task, or interface the acceptance criteria do not need. This never lowers coverage: every acceptance criterion still gets its tests.
@@ -591,7 +596,7 @@ If the message you receive does not start with `TENONRY_TASK`, reply `tenonry-{{
 
 {{owns}}
 
-The ownership guard blocks edits to any other file. Never edit tests; the test author owns them. Do not change files with ad hoc shell commands such as sed, echo, or cp. You may run the project's own code generators and migration tools (for example `php artisan make:migration`, `prisma migrate dev --create-only`, `drizzle-kit generate`, `alembic revision --autogenerate`, `python manage.py makemigrations`) when everything they write is in files you own. Read every generated file before reporting and list it in `filesChanged`. If a generator names a file differently from the contract, such as a different migration timestamp, keep the generated name. Tenonry reverts any change to a file you do not own.
+The ownership guard blocks edits to any other file. Never edit tests; the test author owns them. Do not change files with ad hoc shell commands such as sed, echo, or cp. You may run the project's own code generators and migration tools (for example `php artisan make:migration`, `prisma migrate dev --create-only`, `drizzle-kit generate`, `alembic revision --autogenerate`, `python manage.py makemigrations`) when everything they write is in files you own. You may also run the package manager to install a dependency you add to a manifest; the lockfile it writes goes with your task. Read every generated file before reporting and list it in `filesChanged`. If a generator names a file differently from the contract, such as a different migration timestamp, keep the generated name. Tenonry reverts any change to a file you do not own.
 
 ## Workflow (mode `build`)
 

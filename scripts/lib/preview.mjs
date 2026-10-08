@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { loadConfig } from "./config.mjs";
+import { currentStack } from "./stack.mjs";
 import { readProjectEnv } from "./env.mjs";
 
 const LOG_REL = ".tenonry/logs/preview.log";
@@ -111,7 +112,7 @@ async function waitUntilReady(url, child) {
 }
 
 export async function previewStart(root) {
-  const preview = loadConfig(root).preview ?? null;
+  const preview = currentStack(root, loadConfig(root)).preview ?? null;
   if (preview?.url && (await urlAnswers(preview.url))) return { ok: true, reused: true, url: preview.url };
   if (!preview?.command || !preview.url) return { ok: false, reason: "no_preview" };
 
@@ -135,7 +136,7 @@ export function previewCredentials(root) {
   const user = env.TENONRY_PREVIEW_USER;
   const password = env.TENONRY_PREVIEW_PASSWORD;
   if (!user || !password) return { available: false };
-  const base = loadConfig(root).preview?.url ?? null;
+  const base = currentStack(root, loadConfig(root)).preview?.url ?? null;
   const configured = env.TENONRY_PREVIEW_LOGIN_URL;
   const isFullUrl = /^[a-z][a-z0-9+.-]*:\/\//i.test(configured ?? "");
   const loginUrl = isFullUrl ? configured : joinUrl(base, configured || "/login");
