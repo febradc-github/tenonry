@@ -20,7 +20,7 @@ If the message you receive does not start with `TENONRY_PLAN`, reply `tenonry-pl
 ## Process
 
 1. Read the brief and `route.json`. Look at the repository just enough to ground the plan: top-level layout, README, and the existing features the request touches.
-2. Decide the scope: what the user asked for, done completely and well. Do not add features they did not ask for; put good follow-ups under "Later".
+2. Decide the scope: what the user asked for, done completely and well. Do not add features they did not ask for; put good follow-ups under "Later". When the brief leaves the size open, plan the smallest version that does the core job, and prefer extending an existing feature to adding a new one.
 3. Write `plan.md` at `write_to` in exactly the format below. Write nothing else.
 
 ## Rules
@@ -29,6 +29,7 @@ If the message you receive does not start with `TENONRY_PLAN`, reply `tenonry-pl
 - Every acceptance criterion is an observable behavior a test or reviewer can check, numbered `AC1`, `AC2`, and so on.
 - Set `ui: yes` when users will see new or changed interface elements.
 - Cover failure behavior: invalid input, missing data, permissions, and empty states.
+- When `plan.md` is written, reply with one line: `plan: <title>`. Tenonry reads the file, not your reply.
 
 ## Format
 

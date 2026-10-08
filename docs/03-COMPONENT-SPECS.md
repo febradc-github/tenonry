@@ -9,7 +9,7 @@ All paths are relative to the plugin root unless marked `<project>`. Every JSON 
 ```json
 {
   "name": "tenonry",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Specialist multi-agent pipeline: Jev-routed models, spec-first tests, single-owner files, design and code reviewers.",
   "author": { "name": "Dan Christian Febra" },
   "license": "MIT",
@@ -25,7 +25,7 @@ All paths are relative to the plugin root unless marked `<project>`. Every JSON 
   "description": "Local marketplace for the Tenonry plugin.",
   "owner": { "name": "Dan Christian Febra" },
   "plugins": [
-    { "name": "tenonry", "source": "./", "description": "Specialist multi-agent pipeline with Jev routing.", "version": "0.4.0" }
+    { "name": "tenonry", "source": "./", "description": "Specialist multi-agent pipeline with Jev routing.", "version": "0.5.0" }
   ]
 }
 ```
@@ -40,6 +40,9 @@ All paths are relative to the plugin root unless marked `<project>`. Every JSON 
     ],
     "UserPromptSubmit": [
       { "hooks": [ { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-prompt-router.mjs\"", "timeout": 15 } ] }
+    ],
+    "SubagentStart": [
+      { "matcher": "^tenonry-", "hooks": [ { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-subagent-start.mjs\"", "timeout": 5 } ] }
     ],
     "PreToolUse": [
       { "matcher": "Bash", "hooks": [ { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-output-filter.mjs\"", "timeout": 5 } ] },
@@ -162,6 +165,15 @@ See section 5.2 for the algorithm. Exports `findPackageRoots(root)`, `detectPack
 
 The stand-ins that code writes when Jev lets a run skip an agent: `directPlan(root, runId)`, `designCheck(root, runId)`, and `quickContract(root, runId)` implement the `direct-plan`, `design-check`, and `quick-contract` commands of section 6. Each file they write says in its first lines that no agent wrote it.
 
+### 2.14 `map.mjs`
+
+The codebase map, adapted from ponytail (https://github.com/dietrichgebert/ponytail, MIT). Plain code, no model.
+
+- `receivesMap(agentType)`: true for agent names that start with `tenonry-`, except `tenonry-art-director` and `tenonry-design-reviewer`.
+- Files: `git ls-files`; when git lists none, a directory walk to depth 6. Skipped: any path segment that starts with `.` or is `node_modules`, `vendor`, `dist`, `build`, `out`, `target`, `coverage`, `venv`, `__pycache__`, `migrations`, `fixtures`, `test`, `tests`, `__tests__`, `spec`, or `e2e`; files named `test_*`, or ending in `_test`, `.test`, `.spec`, `.stories`, `.gen`, `.min`, or `.d` before the extension. At most 4000 files, and the first 64 KB of each.
+- `namesIn(file, text)`, by extension: JavaScript and TypeScript exports; Python top-level `def` and `class`; Go exported `func` and `type`; Rust `pub` items; Ruby `def`, `class`, and `module`; PHP classes, interfaces, traits, enums, and top-level functions; Java, Kotlin, Scala, Swift, and C# type declarations; Elixir `defmodule`; Dart classes, mixins, and enums. A `.vue`, `.svelte`, or `.astro` file is named by its file name. Names that start with `_`, and `default`, are dropped.
+- `buildMap(root, { maxChars })`: one line per folder, `<folder>/: <names>`, with the first three names of each file, or the first one when the folder has more than 8 files with names; at most 30 names, then `...`. Folders whose path contains `util`, `helper`, `lib`, `common`, `shared`, `service`, `component`, `composable`, `hook`, `store`, `core`, `model`, `schema`, or `api` come first, the rest alphabetically. Lines are added while they fit in `maxChars` (default 2000; the header is not counted), and the folders left out are counted in a last line `(<n> more folders not listed)`. The result starts with the header `Codebase map (what already exists, one line per folder; reuse it, and read a file only when you need its details):`. No folder with a name: an empty string.
+
 ## 3. Ownership
 
 ### 3.1 `ownership.json` schema
@@ -237,7 +249,7 @@ Two priority bands in the catalog are deliberate. The styling specialists (`css`
 {
   "version": 1,
   "plugin": "tenonry",
-  "pluginVersion": "0.4.0",
+  "pluginVersion": "0.5.0",
   "initializedAt": "<ISO>",
   "packages": [
     { "root": ".", "packageManager": "npm", "specialists": ["laravel", "eloquent", "vue", "tailwind", "html", "php", "nodejs"] }
@@ -273,11 +285,12 @@ Two priority bands in the catalog are deliberate. The styling specialists (`css`
     "maxContractFixes": 2
   },
   "readGuard": { "extraDeny": [], "allow": [] },
-  "outputFilter": { "maxLines": 120, "extraCommands": [] }
+  "outputFilter": { "maxLines": 120, "extraCommands": [] },
+  "codebaseMap": { "enabled": true, "maxChars": 2000 }
 }
 ```
 
-On re-init, `routing`, `limits`, `readGuard`, and `outputFilter` are preserved from the existing file (deep merge, existing values win); everything else is regenerated. One retired knob is dropped on re-init: `routing.thresholds.opus.minBlastRadius`, which stopped choosing the builder's model in 0.3.1 (`docs/04-JEV-ROUTING.md` section 4). Code ignores it when an older file still has it.
+On re-init, `routing`, `limits`, `readGuard`, `outputFilter`, and `codebaseMap` are preserved from the existing file (deep merge, existing values win); everything else is regenerated. One retired knob is dropped on re-init: `routing.thresholds.opus.minBlastRadius`, which stopped choosing the builder's model in 0.3.1 (`docs/04-JEV-ROUTING.md` section 4). Code ignores it when an older file still has it.
 
 ### 4.2 `route.json`
 
@@ -823,6 +836,17 @@ CLI: `node hook-ownership-guard.mjs <agent-name>`.
    - `none`: `tenonry ownership guard: <path> is protected and must not be edited by agents.`
    - unowned: `tenonry ownership guard: <path> has no owner. Add a handoff with status needs_owner to your report and continue with your own files.`
 6. Internal error: write `tenonry ownership guard: internal error, allowing` to stderr and exit 0.
+
+### 8.6 `hook-subagent-start.mjs`
+
+Wired in `hooks.json` with the matcher `^tenonry-`, which Claude Code tests against the subagent's frontmatter `name`. Never blocks a subagent.
+
+1. Exit 0 silently unless `receivesMap(input.agent_type)` (section 2.14).
+2. Find the project root from `input.cwd` or `$CLAUDE_PROJECT_DIR`; none: exit 0 silently.
+3. `config.codebaseMap.enabled` is false: exit 0 silently.
+4. `map = buildMap(root, { maxChars: config.codebaseMap.maxChars })`; empty: exit 0 silently.
+5. Print `{"hookSpecificOutput": {"hookEventName": "SubagentStart", "additionalContext": "<map>"}}`. Claude Code adds it to the subagent's context before its first turn.
+6. Any internal error, or the 5-second timeout: no output. The agent starts without the map and searches as before.
 
 ## 9. Agent rendering
 

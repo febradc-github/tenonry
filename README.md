@@ -2,7 +2,7 @@
 
 ![The Tenonry workshop: an architect, an art director, and a gauge maker plan the piece, craftspeople build it at their own benches, inspection checks it, and dispatch routes the work](assets/workshop.png)
 
-Tenonry is a Claude Code plugin that turns one request into planned, tested, reviewed, and committed work. It splits the job between narrow specialist agents that each own their own files, and it uses Jev, a cheap decision model on OpenRouter, to pick which Claude model does each piece.
+Tenonry is a Claude Code plugin that turns one request into planned, tested, reviewed, and committed work. It splits the job between narrow specialist agents that each own their own files, and it uses Jev, a cheap decision model on OpenRouter, to pick which Claude model does each piece. Every agent works lean: it starts from a short map of what your code already has, writes the least code that fully does the job, and replies in one line.
 
 ## Quick start
 
@@ -98,6 +98,7 @@ Each finished task becomes one local commit named `tenonry(<task>): <title>`. Te
 - `limits`: parallel tasks, retries per model, and review rounds
 - `readGuard`: extra paths agents may not read, or paths to allow
 - `outputFilter`: how many lines of test output reach the model, and extra commands to filter
+- `codebaseMap`: the short list of what your code already defines, one line per folder, that the planner, test author, builders, and code reviewers receive when they start, so they reuse code instead of searching for it. `maxChars` sets its size (default 2000); `enabled: false` turns it off
 
 After about 20 tasks, `node .tenonry/bin/tenonry.mjs calibrate` compares Jev's choices with how often the first attempt passed and suggests threshold changes. It never edits your config.
 
@@ -114,6 +115,16 @@ After about 20 tasks, `node .tenonry/bin/tenonry.mjs calibrate` compares Jev's c
 Delete `.claude/agents/tenonry-*.md` and the `.tenonry/` directory. Then uninstall the plugin with `claude plugin uninstall tenonry`.
 
 ## Changelog
+
+### 0.5.0
+
+Updating to 0.5.0 needs nothing from you: the next `/tenonry:run` in a project notices the new plugin version and re-renders that project's agents, rubrics, and scripts. These changes work with or without a Jev key. The ideas come from [ponytail](https://github.com/dietrichgebert/ponytail) (MIT).
+
+- Builders follow a least-code ladder: skip what the task does not need, then reuse what your project has, then the standard library or framework, then an installed dependency, then one line, and only then new code. Validation, error handling, security, and accessibility are never cut.
+- The planner, test author, builders, and code reviewers start with a codebase map: one line per source folder naming what it defines, about 2,000 characters, built in plain code. They reuse what exists instead of searching for it first. Turn it off with `codebaseMap.enabled: false`.
+- The test author prefers changing existing files to creating new ones. Every acceptance criterion still gets its tests.
+- Every agent finishes with a reply of one line. Tenonry reads their results from files, so longer replies only filled the main session's context.
+- The code rubric's reuse rule, C8, now also covers the standard library and installed dependencies, and no dependency is added for what a few lines do.
 
 ### 0.4.0
 

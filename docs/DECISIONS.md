@@ -478,3 +478,57 @@ The developer asked which further decisions could be handed to Jev to save token
 - Context: D-021 left the license out because the owner had not chosen one, and the README said "Not chosen yet". The repository is now public, and the owner asked for the MIT license.
 - Decision: A `LICENSE` file with the standard MIT text, copyright 2026 Dan Christian Febra (the author named in `plugin.json`). `plugin.json` and the dev `package.json` carry `"license": "MIT"`, the README's License section says MIT and links to the file, and the docs/03 manifest example and the docs/08 README note follow. `repository` stays out of `plugin.json`: it was not asked for. No version bump, because nothing a project runs has changed. This supersedes the license half of D-021.
 - Reason: The owner's choice. Without a license nobody else may legally use or build on the plugin, and plugin directories tend to skip unlicensed repositories.
+
+## Decisions added for revision 0.5.0
+
+The developer asked to take the token-saving idea of ponytail (https://github.com/dietrichgebert/ponytail, MIT) into Tenonry without breaking what the plugin already does. Ponytail is a rule set that makes a coding agent write the least code that fully solves a task. It reaches the main session and every subagent through `SessionStart` and `SubagentStart` hooks, adds a short codebase map so reuse costs no search, and keeps replies to a line or two. Its own agentic benchmarks report 20 to 26 percent lower cost against the same agent without it (`benchmarks/results/2026-10-07-agentic.md` in that repository: Opus 5.5, 39 tasks, five runs each). Those numbers come from single-agent sessions; nothing here has been measured inside a Tenonry run.
+
+### D-088: The least-code ladder goes into the builder template
+- Context: Ponytail's main rule is a ladder: does it need to exist, is it already in the codebase, the standard library or platform, an installed dependency, one line, and only then the minimum new code. Tenonry's builders already had "the smallest complete change" and the readability rules, but no order of preference.
+- Decision: A new "Least code" section in `library/templates/specialist.md`, between the fix workflow and the idioms, and step 4 of the build workflow points to it. The section is rendered text, not hook-injected context: Tenonry already renders its agents, and a rendered rule is versioned, visible in `.claude/agents/`, and tested like every other agent text.
+- Details the request left open:
+  1. Rung 1 is bound to the task's acceptance criteria, tests, and interfaces, so "does it need to exist" can never drop a file or shape another owner builds against.
+  2. Ponytail's bug-fix rule (find every caller, fix the root cause once) keeps Tenonry's ownership: when the root cause is in a file the builder does not own, it hands it off.
+  3. Ponytail's "never cut" list is kept: validation at trust boundaries, error handling that prevents data loss, security, accessibility, and anything the acceptance criteria ask for.
+  4. Not adopted: the rule that new logic leaves its own small test (builders may not edit tests; the test author owns them); the `ponytail:` comment on shortcuts (nothing in the pipeline reads it, and reviewers could take it for a TODO under C10); the levels `lite`, `full`, `ultra`, and `off` (two of them hand a choice back to the user, and Tenonry agents never ask; one level keeps zero configuration); the review, audit, debt, and gain commands (one entry point, design goal 3); the status line.
+- Reason: Less code is fewer output tokens, fewer turns, and smaller diffs for `verify` and the reviewers. The ladder agrees with C7 and C8, so builders and reviewers keep one standard.
+
+### D-089: The codebase map reaches agents through a SubagentStart hook
+- Context: Ponytail's second mechanism is a map of what already exists, injected at session start, so "reuse first" costs no search.
+- Decision: `scripts/lib/map.mjs` builds the map in plain code and `scripts/hook-subagent-start.mjs` returns it as `additionalContext`, wired in `hooks.json` under `SubagentStart` with the matcher `^tenonry-`. The planner, the test author, builders, and code reviewers receive it. The art director and the design reviewer do not: they judge the interface, not the code.
+- Details the request left open:
+  1. A hook instead of a delegation line or a file. A delegation line would be echoed by the orchestrator as output tokens and stay in the main session's context; a file would cost every agent a `Read` turn. The hook costs neither. Checked against the live docs on 2026-10-09: `SubagentStart` accepts `hookSpecificOutput.additionalContext` (https://code.claude.com/docs/en/hooks.md), and its matcher is tested against the frontmatter `name` of a project agent (https://code.claude.com/docs/en/sub-agents.md).
+  2. The main session gets no map. It coordinates and reads code only for a direct answer, and a `SessionStart` map would cost every session in every project where the plugin is enabled.
+  3. Tracked files only (`git ls-files`), with a directory walk when git lists none. Untracked files are left out because an unignored `node_modules` would flood the list. Every task is committed at its checkpoint, so a later agent still sees what earlier tasks added.
+  4. Rebuilt for every agent, no cache. It takes about 30 ms on this repository, and a cache would need invalidating at every checkpoint. The hook's 5-second timeout bounds a very large repository; a timeout means no map, never a blocked agent.
+  5. Languages beyond ponytail's list, for the catalog's stacks: PHP top-level functions, Elixir, Dart, Kotlin `enum class` and `data class`, C# `partial` and `record`, and single-file components (`.vue`, `.svelte`, `.astro`) named by their file. `.stories` files are skipped with tests. Hidden folders are skipped, which also keeps `.tenonry/` and `.claude/` out.
+  6. The budget is ponytail's 2000 characters, about 500 tokens per agent, with the header not counted. Shared folders (utils, services, components, models, and similar) come first, so a tight budget keeps the code most worth reusing.
+- Reason: The cheapest search is the one the agent never makes. The map is a hint, built by regexes; an agent that needs details still reads or searches.
+
+### D-090: A `codebaseMap` knob in `config.json`
+- Context: Every optional behavior in Tenonry has a knob in `.tenonry/config.json` that survives re-init.
+- Decision: `codebaseMap: { enabled: true, maxChars: 2000 }`, written by init and preserved on re-init like `routing`, `limits`, `readGuard`, and `outputFilter`. An invalid `maxChars` falls back to 2000. No knob for the ladder (D-088 point 4).
+- Reason: The map is the one new piece that adds input tokens to every agent, so it is the one a user may want to size or switch off.
+
+### D-091: Every agent finishes with a one-line reply
+- Context: Ponytail ends every reply with one or two lines. In Tenonry every agent's result already travels through a file (report, review, plan, contract, direction, brief), and the `run` skill never reads the reply. But each subagent's final reply returns to the main session (https://code.claude.com/docs/en/sub-agents.md: "When subagents complete, their results return to your main conversation") and stays in its context for the rest of the run, re-read on every orchestrator turn.
+- Decision: Each agent text names a one-line reply in a fixed shape: `plan: <title>`, `design: <mode>`, `contract <run>: <n> tasks`, `<status> <task id>` for builders, and `<verdict> <task id>` for both reviewers. Each says that Tenonry reads the files, not the reply.
+- Details the request left open: The guard reply for a message that does not come from `/tenonry:run` is unchanged. Ponytail's "say what you skipped" was not moved into the builder's report, because nothing reads the report's `summary`.
+- Reason: The main session runs on the user's model, often Sonnet or Opus, and its context is the one that grows for the whole run.
+
+### D-092: The planner and the test author apply the first rungs at their level
+- Context: A file that is never planned costs less than any line written in it.
+- Decision: The planner, when the brief leaves the size open, plans the smallest version that does the core job and prefers extending an existing feature to adding a new one. The test author prefers changing existing files to creating new ones, reuses what exists (the map lists it), and adds no file, task, or interface the acceptance criteria do not need.
+- Details the request left open: The test author's rule says outright that it never lowers coverage: every acceptance criterion still gets its tests. Step 5, how tests are written, is unchanged, so tests-first (design goal 1) is untouched.
+- Reason: Same as D-088, one step earlier in the pipeline.
+
+### D-093: Code reviewers use the map for C8, and C8 covers the standard library and installed dependencies
+- Context: Builders now prefer the standard library and installed dependencies (rungs 3 and 4), which C8 did not name. Reviewers checked C8 by searching for duplicates.
+- Decision: C8 now reads "Existing project utilities, components, framework features, the standard library, and installed dependencies are used instead of re-implemented. No dependency is added for what a few lines do." Code reviewers are told the map lists what already exists and to use it for C8 before searching.
+- Details the request left open: No new rule id, so every `C1` to `C12` reference stays valid. No stronger "flag everything not asked for" instruction: C7 already covers it, and extra findings cost fix rounds, which would spend the tokens the ladder saves.
+- Reason: Builders and reviewers judge by the same standard, and the reviewer's reuse check gets cheaper.
+
+### D-094: Housekeeping for 0.5.0
+- Context: Version, documents, tests.
+- Decision: Version 0.5.0 in `plugin.json`, `marketplace.json`, `package.json`, and the docs/03 examples, so existing projects re-render their agents and rubric on the next run. The `docs/06` and `docs/07` copies match the shipped texts. The two `hooks.json` tests now expect five hooks and the `SubagentStart` matcher. The revision was committed on `main` and pushed to `origin/main` on the developer's instruction (see D-077).
+- Reason: One version everywhere, and the documents stay the source of truth.

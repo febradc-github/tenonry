@@ -22,7 +22,7 @@ test("session start runs without any stdin", () => {
 test("hooks.json parses and references existing scripts", () => {
   const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "hooks", "hooks.json"), "utf8"));
   const commands = Object.values(config.hooks).flatMap((groups) => groups.flatMap((g) => g.hooks.map((h) => h.command)));
-  assert.equal(commands.length, 4);
+  assert.equal(commands.length, 5);
   for (const command of commands) {
     const match = /\$\{CLAUDE_PLUGIN_ROOT\}\/(scripts\/[\w.-]+)/.exec(command);
     assert.ok(match, command);
@@ -32,7 +32,8 @@ test("hooks.json parses and references existing scripts", () => {
 
 test("hooks.json uses the documented events, matchers, and second-based timeouts", () => {
   const config = JSON.parse(fs.readFileSync(path.join(repoRoot, "hooks", "hooks.json"), "utf8")).hooks;
-  assert.deepEqual(Object.keys(config), ["SessionStart", "UserPromptSubmit", "PreToolUse"]);
+  assert.deepEqual(Object.keys(config), ["SessionStart", "UserPromptSubmit", "SubagentStart", "PreToolUse"]);
+  assert.deepEqual(config.SubagentStart.map((g) => g.matcher), ["^tenonry-"]);
   assert.deepEqual(config.PreToolUse.map((g) => g.matcher), ["Bash", "Read"]);
   for (const group of Object.values(config).flat()) {
     for (const hook of group.hooks) {

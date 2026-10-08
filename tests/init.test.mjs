@@ -36,7 +36,7 @@ test("init writes config, ownership, bin, rubrics, agents, and gitignore", () =>
 
   const cfg = config(root);
   assert.equal(cfg.plugin, "tenonry");
-  assert.equal(cfg.pluginVersion, "0.4.0");
+  assert.equal(cfg.pluginVersion, "0.5.0");
   assert.deepEqual(cfg.activeSpecialists, [...cfg.activeSpecialists].sort());
   assert.deepEqual(cfg.verify.map(({ ecosystem, ...v }) => v), [
     { root: ".", test: "php artisan test", testFiles: "php artisan test {files}", typecheck: null, lint: "./vendor/bin/pint --test" },
@@ -49,7 +49,7 @@ test("init writes config, ownership, bin, rubrics, agents, and gitignore", () =>
   for (const file of ["tenonry.mjs", "exec-filter.mjs", "hook-ownership-guard.mjs", "VERSION", "lib/glob.mjs", "library/catalog.json"]) {
     assert.ok(fs.existsSync(path.join(root, ".tenonry", "bin", file)), file);
   }
-  assert.equal(fs.readFileSync(path.join(root, ".tenonry", "bin", "VERSION"), "utf8"), "0.4.0\n");
+  assert.equal(fs.readFileSync(path.join(root, ".tenonry", "bin", "VERSION"), "utf8"), "0.5.0\n");
   for (const file of ["design.md", "code.md"]) assert.ok(fs.existsSync(path.join(root, ".tenonry", "rubrics", file)));
 
   const gitignore = fs.readFileSync(path.join(root, ".gitignore"), "utf8");
@@ -174,6 +174,17 @@ test("re-init preserves edited routing, limits, readGuard, and outputFilter", ()
   assert.deepEqual(after.readGuard.extraDeny, ["secrets/**"]);
   assert.equal(after.outputFilter.maxLines, 60);
   assert.equal(after.routing.thresholds.opus.minDifficulty, 2.0);
+});
+
+test("0.5.0: init writes the codebase map knob and re-init keeps an edited one", () => {
+  const root = fixtureCopy("laravel-vue");
+  runInit(root);
+  assert.deepEqual(config(root).codebaseMap, { enabled: true, maxChars: 2000 });
+  const edited = config(root);
+  edited.codebaseMap = { enabled: false, maxChars: 800 };
+  fs.writeFileSync(path.join(root, ".tenonry", "config.json"), JSON.stringify(edited, null, 2));
+  runInit(root);
+  assert.deepEqual(config(root).codebaseMap, { enabled: false, maxChars: 800 });
 });
 
 test("0.3.1: re-init drops the retired opus.minBlastRadius and keeps an edited opus.minDifficulty", () => {

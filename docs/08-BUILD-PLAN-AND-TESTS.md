@@ -171,3 +171,13 @@ Six more decisions handed to Jev (decisions D-080 to D-086).
 - A quick run through the real CLI from intake to undo, and a quick task that hands off to another owner: `tests/pipeline.test.mjs`.
 - Review plan (haiku code review and every condition that keeps it on sonnet, the design review skipped, kept, decided once, and reported): `tests/review.test.mjs`.
 - The run skill's steps 3, 5, and 6, the builder's quick-task sentence, the new thresholds on init and re-init, version 0.4.0, and the changelog: `tests/skills.test.mjs`, `tests/agents-render.test.mjs`, `tests/init.test.mjs`.
+
+## Revision 0.5.0 tests
+
+Ponytail's token-saving ideas, adapted (decisions D-088 to D-094).
+
+- `namesIn` for every supported language, the folders the map skips, shared folders first, one name per file in large folders, the 30-name cut, the character budget and the count of folders left out, tracked files only in a git repository, an empty map, which agents receive it, and the config default: `tests/map.test.mjs`.
+- The SubagentStart hook (the map for a builder, nothing for the visual agents or other subagents, nothing outside a project, with the map off, or with nothing to list, `CLAUDE_PROJECT_DIR`, `maxChars`, invalid stdin): `tests/hook-subagent-start.test.mjs`.
+- `hooks.json` with five hooks and the `^tenonry-` matcher: `tests/hook-session-start.test.mjs`.
+- The least-code section in builders only, the one-line reply in every agent, the reviewer's map sentence for C8, the extended C8, and the test author's small-contract rule that keeps coverage: `tests/agents-render.test.mjs`; the verbatim copies in `docs/06` and `docs/07`: `tests/shipped-files.test.mjs`.
+- `codebaseMap` on init and re-init, version 0.5.0, and the changelog: `tests/init.test.mjs` and `tests/skills.test.mjs`.

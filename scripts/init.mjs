@@ -13,7 +13,7 @@ import { hasMarker } from "./lib/render.mjs";
 import { isGitRepo } from "./lib/git.mjs";
 import { openRouterKey } from "./lib/env.mjs";
 import {
-  DEFAULT_ROUTING, DEFAULT_LIMITS, DEFAULT_READ_GUARD, DEFAULT_OUTPUT_FILTER, mergePreferExisting, dropRetiredRouting, configPath, isPlainObject,
+  DEFAULT_ROUTING, DEFAULT_LIMITS, DEFAULT_READ_GUARD, DEFAULT_OUTPUT_FILTER, DEFAULT_CODEBASE_MAP, mergePreferExisting, dropRetiredRouting, configPath, isPlainObject,
 } from "./lib/config.mjs";
 import { isMain } from "./lib/main.mjs";
 
@@ -210,6 +210,7 @@ export function runInit({ root, dryRun = false, ifChanged = false }) {
     limits: mergePreferExisting(DEFAULT_LIMITS, existing.limits),
     readGuard: mergePreferExisting(DEFAULT_READ_GUARD, existing.readGuard),
     outputFilter: mergePreferExisting(DEFAULT_OUTPUT_FILTER, existing.outputFilter),
+    codebaseMap: mergePreferExisting(DEFAULT_CODEBASE_MAP, existing.codebaseMap),
     manifestHash: hash,
   });
   writeJsonAtomic(path.join(root, ".tenonry", "ownership.json"), buildOwnership(publicPackages, catalog));

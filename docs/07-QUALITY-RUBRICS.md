@@ -96,7 +96,7 @@ A change passes review when it has no blocking or major findings. Rule ids are c
 - **C5 Readable control flow.** Early returns over deep nesting. No clever one-liners that hide intent. No nested ternaries.
 - **C6 Error handling at the right level.** Errors are handled where something useful can be done, and propagated otherwise. No swallowed exceptions. No defensive try/catch around trusted internal calls.
 - **C7 No speculative generality.** No abstractions, interfaces, factories, options, or extension points without a current second use. Three similar lines beat a premature helper.
-- **C8 Reuse over reinvention.** Existing project utilities, components, and framework features are used instead of re-implemented.
+- **C8 Reuse over reinvention.** Existing project utilities, components, framework features, the standard library, and installed dependencies are used instead of re-implemented. No dependency is added for what a few lines do.
 - **C9 Comments explain why.** No comments restating the code. No narrative comments. No docstrings, comments, or type annotations added to code the task did not change.
 - **C10 No leftovers.** No dead code, commented-out code, debug output, TODOs without an issue reference, or scaffolding from earlier attempts.
 - **C11 Consistency.** The change follows the project's existing structure, naming, formatting, and patterns. A newcomer could not tell which lines were generated.

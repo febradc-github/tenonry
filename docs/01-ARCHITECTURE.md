@@ -9,7 +9,7 @@ Design goals, in priority order:
 1. **No AI slop.** Specialists follow language-level idioms. Reviewers are separate from builders. Tests are written from the spec before any implementation exists.
 2. **Single responsibility.** Every file in the project has exactly one owning agent. Builders never review, reviewers never edit, nobody edits tests except the test author.
 3. **Easy to use.** One command to remember. No setup step, no configuration needed, no prompts blocked, plain progress messages, and one-command undo.
-4. **Token efficiency.** Opus only where judgment changes the outcome: a small, clear request skips the planner, a change that needs no new design skips the art director, and a question skips the pipeline. Cheap models for mechanical work. Deterministic code for every decision that is a fact, not a judgment. Noisy tool output filtered before it reaches context.
+4. **Token efficiency.** Opus only where judgment changes the outcome: a small, clear request skips the planner, a change that needs no new design skips the art director, and a question skips the pipeline. Cheap models for mechanical work. Deterministic code for every decision that is a fact, not a judgment. Noisy tool output filtered before it reaches context. Agents write the least code that fully solves the task, start from a map of what the codebase already has, and reply in one line.
 
 ## 2. Components
 
@@ -54,13 +54,14 @@ Design goals, in priority order:
 |---|---|---|
 | SessionStart | `hook-session-start.mjs` | Injects `TENONRY_PLUGIN_ROOT=<path>` so skills can find plugin scripts |
 | UserPromptSubmit | `hook-prompt-router.mjs` | On `/tenonry:run` only: Jev intake routing, run creation, main-model note. Never blocks |
+| SubagentStart (`^tenonry-`) | `hook-subagent-start.mjs` | Gives the planner, the test author, builders, and code reviewers the codebase map before their first turn. Never blocks |
 | PreToolUse (Bash) | `hook-output-filter.mjs` | Rewrites test, lint, typecheck, and build commands to run through `exec-filter.mjs` |
 | PreToolUse (Read) | `hook-read-guard.mjs` | Denies reads of lockfiles, build output, minified files, source maps |
 | PreToolUse (Edit, Write, MultiEdit, NotebookEdit) in agent frontmatter | `hook-ownership-guard.mjs` | Blocks an agent from editing files it does not own |
 
 ### 2.5 Scripts
 
-`scripts/tenonry.mjs` is a single CLI with subcommands the orchestrator calls. `scripts/init.mjs` performs initialization. `scripts/exec-filter.mjs` wraps noisy commands. `scripts/lib/` holds shared modules (glob, env, jev, routing, ownership, detect, render, git, state, contract, preview, direct). Exact specs are in `docs/03-COMPONENT-SPECS.md`.
+`scripts/tenonry.mjs` is a single CLI with subcommands the orchestrator calls. `scripts/init.mjs` performs initialization. `scripts/exec-filter.mjs` wraps noisy commands. `scripts/lib/` holds shared modules (glob, env, jev, routing, ownership, detect, render, git, state, contract, preview, direct, map). Exact specs are in `docs/03-COMPONENT-SPECS.md`.
 
 ## 3. Plugin repository layout (what the build produces)
 
@@ -81,12 +82,13 @@ tenonry/
     exec-filter.mjs
     hook-session-start.mjs
     hook-prompt-router.mjs
+    hook-subagent-start.mjs
     hook-output-filter.mjs
     hook-read-guard.mjs
     hook-ownership-guard.mjs
     lib/
       glob.mjs  env.mjs  jev.mjs  routing.mjs  ownership.mjs  detect.mjs
-      render.mjs  git.mjs  state.mjs  contract.mjs  paths.mjs  json.mjs
+      render.mjs  git.mjs  state.mjs  contract.mjs  paths.mjs  json.mjs  map.mjs
   library/
     catalog.json
     core/
@@ -205,3 +207,6 @@ Fallbacks: if Jev times out, errors, or no key exists, nothing is skipped: every
 - The read guard keeps lockfiles and build output out of context.
 - Design review loops are capped (3 rounds); code review loops are capped (2 rounds).
 - Screens are scored by profile: `showcase` pages by the awards weighting, `product` screens (forms, tables, dashboards, settings) by a weighting that favors clarity, accessibility, and responsiveness, so ordinary work screens do not burn three Opus design rounds chasing originality.
+- Builders follow the least-code ladder (`docs/06` section 5.1, adapted from ponytail): skip what is not needed, reuse what the project has, then the standard library or framework, then an installed dependency, then one line, and only then new code. Less code means fewer output tokens, fewer turns, and smaller diffs to verify and review.
+- The planner, the test author, builders, and code reviewers start with the codebase map (`docs/03` section 2.14), so reuse costs no search. It is built in plain code, about 2,000 characters, and rebuilt for every agent, so a later task sees what earlier tasks committed.
+- Every agent replies with one line. Results travel through files, so the main session's context does not grow with each agent's summary.

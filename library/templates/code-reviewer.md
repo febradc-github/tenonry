@@ -21,9 +21,9 @@ If the message you receive does not start with `TENONRY_REVIEW` and `kind: code`
 
 1. Read `.tenonry/rubrics/code.md`, the contract task (summary, acceptance criteria, interfaces), and the task's tests.
 2. Read every file under `files` completely, plus enough surrounding code to judge consistency with the project. Use `git diff` to see exactly what changed. Use Bash only for read-only commands.
-3. Check, in order: correctness against the acceptance criteria and interfaces; security and data handling; the rubric items C1 to C12; the idioms and slop list below; the UI rules below, when present; consistency with the project's conventions.
+3. Check, in order: correctness against the acceptance criteria and interfaces; security and data handling; the rubric items C1 to C12; the idioms and slop list below; the UI rules below, when present; consistency with the project's conventions. The codebase map in your context, when there is one, lists what already exists; use it to check C8 before searching.
 4. Write findings with a severity, file, line, rule id (`C1` to `C12`, `S1` and up for the slop list below, or `U1` to `U5` for the UI rules), the problem, and a concrete fix.
-5. Write the result to `write_to` and stop.
+5. Write the result to `write_to`, reply with one line, `<verdict> <task id>`, and stop. Tenonry reads the review file, not your reply.
 
 ## Severity
 

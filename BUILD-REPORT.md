@@ -252,3 +252,46 @@ Supporting changes: two new Jev questions (`new_design` at intake, `visual_chang
 
 D-080 to D-086. Full text in `docs/DECISIONS.md`.
 
+
+## Revision 0.5.0
+
+The token-saving ideas of [ponytail](https://github.com/dietrichgebert/ponytail) (MIT), adapted to Tenonry's pipeline at the developer's request, without changing what the pipeline does: tests first, single owners, reviews, Jev routing, and every shortcut stay as they were. One commit, `feat(0.5.0): least-code ladder, codebase map, and one-line replies`, pushed to `origin/main` on the developer's instruction (D-094).
+
+### What changed
+
+| # | Ponytail idea | What Tenonry does now | Decision |
+|---|---|---|---|
+| 1 | The least-code ladder | Builders get a "Least code" section: skip what the task does not need, reuse what the project has, then the standard library or framework, then an installed dependency, then one line, then the minimum new code. A "never cut" list protects validation, error handling, security, and accessibility | D-088 |
+| 2 | The codebase map | A `SubagentStart` hook gives the planner, the test author, builders, and code reviewers a map of what the code already defines, one line per folder, about 2,000 characters, built in plain code for every agent | D-089 |
+| 3 | A knob for the map | `codebaseMap: { enabled, maxChars }` in `.tenonry/config.json`, kept on re-init | D-090 |
+| 4 | Short replies | Every agent finishes with a reply of one line; results already travel through files, so the main session's context stops growing with agent summaries | D-091 |
+| 5 | Ladder before the build | The planner plans the smallest version when the size is open; the test author prefers existing files and adds nothing the acceptance criteria do not need, without lowering coverage | D-092 |
+| 6 | Reviewing for less code | Code reviewers use the map for C8, and C8 now covers the standard library and installed dependencies | D-093 |
+
+New files: `scripts/lib/map.mjs`, `scripts/hook-subagent-start.mjs`, `tests/map.test.mjs`, `tests/hook-subagent-start.test.mjs`. Version 0.5.0 (D-094).
+
+### Test results
+
+- `node --test`: **521 tests, 517 passed, 0 failed, 4 skipped**. The skips are the live Jev test and the three `claude plugin validate` tests. Twenty-one tests are new.
+- `node scripts/tenonry.mjs catalog-check`: passes; the catalog is untouched.
+- Smoke check: a real `init.mjs` on a copy of the `laravel-vue` fixture writes `codebaseMap` and version 0.5.0, renders the one-line reply into all 18 agents, and the hook, fed the JSON Claude Code sends, returns the map for `tenonry-laravel` (including a newly committed service class) and nothing for `tenonry-design-reviewer`.
+- Existing tests changed because the behavior changed on purpose: the two `hooks.json` tests (five hooks, the new event and matcher) and the version assertions.
+
+### Skipped or unverified checks
+
+| Check | Why | What stands in for it |
+|---|---|---|
+| `claude plugin validate` | The Claude Code CLI in this environment only runs `claude -p` | `hooks.json` is checked by the tests; ponytail ships the same `SubagentStart` hook shape in its Claude Code plugin |
+| A real `/tenonry:run`, and the savings | Token cost, and no baseline run to compare against | The hook is tested with the input Claude Code sends; the texts are checked sentence by sentence. Ponytail's numbers come from single-agent sessions and may not carry over to a pipeline |
+
+### Things worth knowing
+
+- **Nothing is skipped that ran before.** The ladder changes how builders write, not which steps run. Tests are still written first, and every task is still reviewed.
+- **The map is a hint, not an index.** Regexes miss nested and dynamic definitions; agents still search when they need details. It lists tracked files only, which is why each checkpoint commit makes earlier tasks' work visible to later agents.
+- **The map costs input tokens.** About 500 per agent. `codebaseMap.enabled: false` turns it off, and `maxChars` sizes it.
+- **C8 is a little stricter.** Re-implementing the standard library or an installed dependency, or adding a dependency for a few lines, is now a major finding. Expect it in the first runs on a project.
+- **Not adopted from ponytail:** levels, its extra commands, the status line, the shortcut comment, and self-written tests (D-088 point 4).
+
+### New decisions
+
+D-088 to D-094. Full text in `docs/DECISIONS.md`.

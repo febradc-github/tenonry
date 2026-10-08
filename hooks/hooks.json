@@ -6,6 +6,9 @@
     "UserPromptSubmit": [
       { "hooks": [ { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-prompt-router.mjs\"", "timeout": 15 } ] }
     ],
+    "SubagentStart": [
+      { "matcher": "^tenonry-", "hooks": [ { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-subagent-start.mjs\"", "timeout": 5 } ] }
+    ],
     "PreToolUse": [
       { "matcher": "Bash", "hooks": [ { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-output-filter.mjs\"", "timeout": 5 } ] },
       { "matcher": "Read", "hooks": [ { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook-read-guard.mjs\"", "timeout": 5 } ] }

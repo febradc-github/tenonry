@@ -29,6 +29,7 @@ export const DEFAULT_LIMITS = {
 
 export const DEFAULT_READ_GUARD = { extraDeny: [], allow: [] };
 export const DEFAULT_OUTPUT_FILTER = { maxLines: 120, extraCommands: [] };
+export const DEFAULT_CODEBASE_MAP = { enabled: true, maxChars: 2000 };
 
 export const configPath = (root) => path.join(root, ".tenonry", "config.json");
 
@@ -63,6 +64,7 @@ export function loadConfig(root) {
     limits: mergePreferExisting(DEFAULT_LIMITS, raw.limits),
     readGuard: mergePreferExisting(DEFAULT_READ_GUARD, raw.readGuard),
     outputFilter: mergePreferExisting(DEFAULT_OUTPUT_FILTER, raw.outputFilter),
+    codebaseMap: mergePreferExisting(DEFAULT_CODEBASE_MAP, raw.codebaseMap),
     agents: raw.agents ?? [],
     verify: raw.verify ?? [],
     packages: raw.packages ?? [],

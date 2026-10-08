@@ -183,3 +183,50 @@ test("0.4.0: builders are told what a task without files is", () => {
   for (const name of ["tenonry-laravel", "tenonry-vue"]) assert.ok(agents.get(name).includes(sentence), name);
   assert.ok(!agents.get("tenonry-review-laravel").includes(sentence));
 });
+
+test("0.5.0: builders get the least-code ladder between the fix workflow and the idioms; reviewers do not", () => {
+  const agents = render([{ root: ".", specialists: ["laravel", "vue"] }]);
+  for (const name of ["tenonry-laravel", "tenonry-vue"]) {
+    const text = agents.get(name);
+    const fix = text.indexOf("## Workflow (mode `fix`)");
+    const ladder = text.indexOf("## Least code");
+    const idioms = text.indexOf("## Idioms");
+    assert.ok(fix < ladder && ladder < idioms, name);
+    const rungs = text.slice(ladder, idioms).split("\n").filter((line) => /^\d+\. /.test(line));
+    assert.equal(rungs.length, 6, name);
+    assert.ok(rungs[0].startsWith("1. Does it need to exist?"));
+    assert.ok(rungs[1].includes("The codebase map in your context, when there is one, lists what exists"));
+    assert.ok(text.includes("following \"Least code\" below"), name);
+    assert.ok(text.includes("- Never cut validation at trust boundaries, error handling that prevents data loss, security, accessibility, or anything the acceptance criteria ask for."), name);
+    assert.doesNotMatch(text, /\n\n\n/);
+  }
+  assert.ok(!agents.get("tenonry-review-laravel").includes("## Least code"));
+});
+
+test("0.5.0: every rendered agent ends its work with a one-line reply", () => {
+  const agents = render([{ root: ".", specialists: ["laravel", "vue"] }]);
+  const expected = {
+    "tenonry-planner": "reply with one line: `plan: <title>`",
+    "tenonry-art-director": "reply with one line: `design: <mode>`",
+    "tenonry-test-author": "reply with one line: `contract <run>: <n> tasks`",
+    "tenonry-design-reviewer": "reply with one line: `<verdict> <task id>`",
+    "tenonry-laravel": "reply with one line: `<status> <task id>`",
+    "tenonry-review-laravel": "reply with one line, `<verdict> <task id>`, and stop",
+  };
+  for (const [name, needle] of Object.entries(expected)) assert.ok(agents.get(name).includes(needle), name);
+  for (const [name, text] of agents) assert.ok(text.includes("not your reply"), name);
+});
+
+test("0.5.0: code reviewers check reuse against the map, and the rubric counts the standard library and installed dependencies", () => {
+  const text = render([{ root: ".", specialists: ["vue"] }]).get("tenonry-review-vue");
+  assert.ok(text.includes("The codebase map in your context, when there is one, lists what already exists; use it to check C8 before searching."));
+  const rubric = fs.readFileSync(path.join(libraryDir, "rubrics", "code.md"), "utf8");
+  assert.ok(rubric.includes("- **C8 Reuse over reinvention.** Existing project utilities, components, framework features, the standard library, and installed dependencies are used instead of re-implemented. No dependency is added for what a few lines do.\n"));
+});
+
+test("0.5.0: the test author keeps the contract small without lowering coverage", () => {
+  const text = fs.readFileSync(path.join(libraryDir, "core", "test-author.md"), "utf8");
+  assert.ok(text.includes("- The least work that meets the plan wins. Prefer changing existing files to creating new ones"));
+  assert.ok(text.includes("This never lowers coverage: every acceptance criterion still gets its tests."));
+  assert.ok(text.includes("5. Write the tests. Derive them only from the acceptance criteria and interfaces"), "test writing is unchanged");
+});

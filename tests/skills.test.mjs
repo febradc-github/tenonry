@@ -75,13 +75,13 @@ test("every agent mentioned in delegations exists in the library", () => {
 test("the plugin manifests carry the documented metadata", () => {
   const plugin = JSON.parse(read(".claude-plugin", "plugin.json"));
   assert.equal(plugin.name, "tenonry");
-  assert.equal(plugin.version, "0.4.0");
+  assert.equal(plugin.version, "0.5.0");
   assert.deepEqual(plugin.author, { name: "Dan Christian Febra" });
   assert.equal(plugin.license, "MIT");
   assert.equal(plugin.repository, undefined);
   const market = JSON.parse(read(".claude-plugin", "marketplace.json"));
   assert.equal(market.name, "tenonry-local");
-  assert.deepEqual(market.plugins[0], { name: "tenonry", source: "./", description: "Specialist multi-agent pipeline with Jev routing.", version: "0.4.0" });
+  assert.deepEqual(market.plugins[0], { name: "tenonry", source: "./", description: "Specialist multi-agent pipeline with Jev routing.", version: "0.5.0" });
 });
 
 test("the user README follows the required order and names the license", () => {
@@ -130,7 +130,7 @@ test("F12: the README changelog lists the eleven 0.2.0 changes and the automatic
 
 test("F12: every manifest and the dev package agree on the version", () => {
   const version = JSON.parse(read(".claude-plugin", "plugin.json")).version;
-  assert.equal(version, "0.4.0");
+  assert.equal(version, "0.5.0");
   assert.equal(JSON.parse(read(".claude-plugin", "marketplace.json")).plugins[0].version, version);
   assert.equal(JSON.parse(read("package.json")).version, version);
 });
@@ -223,4 +223,14 @@ test("the repository carries the MIT license, and every manifest names it", () =
   assert.match(license, /Permission is hereby granted, free of charge, to any person obtaining a copy/);
   assert.match(license, /THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND/);
   assert.equal(JSON.parse(read("package.json")).license, "MIT");
+});
+
+test("0.5.0: the README changelog lists the least-code changes and credits ponytail", () => {
+  const readme = read("README.md");
+  const section = readme.slice(readme.indexOf("### 0.5.0"), readme.indexOf("### 0.4.0"));
+  assert.ok(readme.indexOf("### 0.5.0") > readme.indexOf("## Changelog"));
+  for (const needle of ["least-code ladder", "codebase map", "codebaseMap.enabled: false", "one line", "C8", "https://github.com/dietrichgebert/ponytail"]) {
+    assert.ok(section.includes(needle), needle);
+  }
+  assert.ok(readme.includes("- `codebaseMap`: "), "the optional settings list the knob");
 });
